@@ -10,7 +10,15 @@
 #include <stdio.h>
 #include <tchar.h>
 
+// Input/Output
+#include <sstream>
+#include <fstream>
 
+// Lexer
+#include "Token.hpp"
+#include "Tokenizer.hpp"
 
+// Error
+#include "Syntax.hpp"
 
 // TODO: reference additional headers your program requires here
