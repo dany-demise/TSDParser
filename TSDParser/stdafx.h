@@ -9,20 +9,7 @@
 
 #include <stdio.h>
 #include <tchar.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cctype>
 
-#include "TSDClass.hpp"
-#include "TSDClassDeclaration.hpp"
-#include "TSDComment.hpp"
-#include "TSDFile.hpp"
-#include "TSDMethod.hpp"
-#include "TSDModule.hpp"
-#include "TSDProperty.hpp"
-#include "TSDType.hpp"
-#include "Tracker.hpp"
 
 
 
