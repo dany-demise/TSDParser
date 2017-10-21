@@ -4,20 +4,22 @@
 #include <string>
 #include <vector>
 #include "TSDClassDeclaration.hpp"
+#include "Tracker.hpp"
 
 namespace nope
 {
 	class TSDModule
 	{
 	public:
-		TSDModule();
+		TSDModule() = delete;
+		TSDModule(Tracker &tracker);
 		TSDModule(std::string const &name);
-		TSDModule(TSDModule const &that);
+		TSDModule(TSDModule const &that) = delete;
 		TSDModule(TSDModule &&that);
 
 		~TSDModule() noexcept;
 
-		TSDModule &operator=(TSDModule const &that);
+		TSDModule &operator=(TSDModule const &that) = delete;
 		TSDModule &operator=(TSDModule &&that);
 
 	private:

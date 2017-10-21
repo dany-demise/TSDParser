@@ -48,6 +48,9 @@
     <ClInclude Include="Tracker.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TSDComment.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

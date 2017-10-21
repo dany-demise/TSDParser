@@ -12,9 +12,11 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cctype>
 
 #include "TSDClass.hpp"
 #include "TSDClassDeclaration.hpp"
+#include "TSDComment.hpp"
 #include "TSDFile.hpp"
 #include "TSDMethod.hpp"
 #include "TSDModule.hpp"

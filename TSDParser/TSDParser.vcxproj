@@ -152,6 +152,7 @@
     <ClInclude Include="Tracker.hpp" />
     <ClInclude Include="TSDClass.hpp" />
     <ClInclude Include="TSDClassDeclaration.hpp" />
+    <ClInclude Include="TSDComment.hpp" />
     <ClInclude Include="TSDFile.hpp" />
     <ClInclude Include="TSDMethod.hpp" />
     <ClInclude Include="TSDModule.hpp" />

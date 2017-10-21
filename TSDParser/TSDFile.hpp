@@ -4,6 +4,7 @@
 # include <string>
 # include <vector>
 # include "TSDModule.hpp"
+# include "Tracker.hpp"
 
 namespace nope
 {
@@ -12,21 +13,20 @@ namespace nope
 	public:
 		TSDFile() = delete;
 		TSDFile(std::string const &name);
-		TSDFile(TSDFile const &that);
-		TSDFile(TSDFile &&that);
+		TSDFile(TSDFile const &that) = delete;
+		TSDFile(TSDFile &&that) = delete;
 
 		~TSDFile() noexcept;
 
-		TSDFile &operator=(TSDFile const &that);
-		TSDFile &operator=(TSDFile &&that);
+		TSDFile &operator=(TSDFile const &that) = delete;
+		TSDFile &operator=(TSDFile &&that) = delete;
 
 		std::string json() const;
 
 		void parse();
 
 	private:
-		std::string m_name;
-		std::string m_content;
+		Tracker m_tracker;
 		std::vector<TSDModule> m_module;
 	};
 }

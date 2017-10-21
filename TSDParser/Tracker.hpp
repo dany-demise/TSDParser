@@ -24,11 +24,14 @@ namespace nope
 		Tracker &get(char &c);
 		Tracker const &peek(char &c) const;
 		Tracker &peek(char &c);
+		std::string_view peek(int n) const;
 		void unget();
 
 		std::pair<std::uint32_t, std::uint32_t> position() const;
 
 		operator bool() const;
+
+		void error(std::string const &message) const;
 
 	private:
 		std::string m_filename;

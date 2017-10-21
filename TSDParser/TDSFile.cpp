@@ -1,21 +1,10 @@
-#include <fstream>
-#include <sstream>
-#include "TSDFile.hpp"
+#include "stdafx.h"
 
 namespace nope
 {
 	TSDFile::TSDFile(std::string const &name) :
-		m_name(name),
-		m_content((std::istreambuf_iterator<char>(std::ifstream(name))), std::istreambuf_iterator<char>()),
+		m_tracker(name),
 		m_module()
-	{
-	}
-
-	TSDFile::TSDFile(TSDFile const &that) : m_name(that.m_name)
-	{
-	}
-
-	TSDFile::TSDFile(TSDFile &&that) : m_name(std::move(that.m_name))
 	{
 	}
 
@@ -23,19 +12,32 @@ namespace nope
 	{
 	}
 
-	TSDFile &TSDFile::operator=(TSDFile const &that)
+	std::string TSDFile::json() const
 	{
-		if (this == &that)
-			return *this;
-		m_name = that.m_name;
-		return *this;
+		return "THIS IS NOT IMPLEMENTED";
 	}
 
-	TSDFile &TSDFile::operator=(TSDFile &&that)
+	void TSDFile::parse()
 	{
-		if (this == &that)
-			return *this;
-		m_name = std::move(that.m_name);
-		return *this;
+		char c;
+
+		while (m_tracker.peek(c))
+		{
+			// Parse comment
+			if (c == '/')
+			{ 
+				TSDComment::parse(m_tracker);
+			}
+			// Parse module
+			else if (std::isalpha(c))
+			{
+				m_module.emplace_back(m_tracker);
+			}
+			// If not space, generate an error
+			else if (std::isspace(c) == false)
+			{
+				m_tracker.error(std::string("Unexpected '") + c + "'");
+			}
+		}
 	}
 }

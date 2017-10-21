@@ -83,4 +83,17 @@ namespace nope
 	{
 		return m_cursor < m_content.size();
 	}
+
+	void Tracker::error(std::string const &message) const
+	{
+		// TODO: implement with exeption instead of this ugly thing
+
+		auto [line, col] = this->position(); 
+
+		std::cerr << m_filename << ':' << line << ':' << col
+			<< " Error: " << message << '\n' << m_content.substr(m_cursor - col, col)
+			<< std::string(col - 1, ' ') << '^';
+
+		std::exit(1);
+	}
 }
