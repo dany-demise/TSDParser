@@ -89,6 +89,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -148,6 +149,14 @@
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Tracker.hpp" />
+    <ClInclude Include="TSDClass.hpp" />
+    <ClInclude Include="TSDClassDeclaration.hpp" />
+    <ClInclude Include="TSDFile.hpp" />
+    <ClInclude Include="TSDMethod.hpp" />
+    <ClInclude Include="TSDModule.hpp" />
+    <ClInclude Include="TSDProperty.hpp" />
+    <ClInclude Include="TSDType.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -156,6 +165,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="TDSFile.cpp" />
+    <ClCompile Include="Tracker.cpp" />
     <ClCompile Include="TSDParser.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
