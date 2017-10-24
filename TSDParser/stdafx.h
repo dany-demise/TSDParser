@@ -13,12 +13,18 @@
 // Input/Output
 #include <sstream>
 #include <fstream>
+#include <iostream>
 
 // Lexer
+#include <cctype>
 #include "Token.hpp"
 #include "Tokenizer.hpp"
 
+// Parser
+#include "Parser.hpp"
+
 // Error
+#include <cassert>
 #include "Syntax.hpp"
 
 // TODO: reference additional headers your program requires here
