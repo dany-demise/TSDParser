@@ -37,6 +37,7 @@ namespace nope::dts::parser
 		Token parseParameterPack();
 		Token parseParameter();
 		Token parseVariable();
+		Token parseUnionType();
 		Token parseType();
 		Token parseDotId();
 

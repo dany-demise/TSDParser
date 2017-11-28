@@ -19,6 +19,9 @@
     <Filter Include="Source Files\Error">
       <UniqueIdentifier>{f7ba270f-dd54-48db-a8dc-24a3000488cb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Model">
+      <UniqueIdentifier>{f3d46052-1bd7-4e29-8b63-4bbdfaf5c084}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -41,6 +44,12 @@
     </ClInclude>
     <ClInclude Include="Parser.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.hpp">
+      <Filter>Header Files\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="File.hpp">
+      <Filter>Header Files\Model</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -47,6 +47,7 @@ namespace nope::dts::parser
 
 		switch (m_input.peek().type)
 		{
+
 		case TokenType::KW_MODULE:
 			elem << this->parseNamespace();
 			break;
@@ -129,7 +130,34 @@ namespace nope::dts::parser
 			m_input.error("Expected an identifier as the class's name");
 		}
 
-		if (clas[2].type != TokenType::P_OPEN_BRACE)
+		if (clas[2].type == TokenType::P_GREATER_THAN)
+		{
+			bool end = false;
+
+			while (end == false)
+			{
+				clas << m_input.next();
+
+				if (clas.last().type != TokenType::ID)
+				{
+					m_input.error("Expected an identifier as generic's type");
+				}
+
+				clas << m_input.next();
+
+				if (clas.last().type == TokenType::P_LESS_THAN)
+				{
+					end = true;
+				}
+				else if (clas.last().type != TokenType::P_COMMA)
+				{
+					m_input.error("Expected a comma after a generic's type");
+				}
+			}
+			clas << m_input.next();
+		}
+
+		if (clas.last().type != TokenType::P_OPEN_BRACE)
 		{
 			m_input.error("Expected a '{' for class declaration");
 		}
@@ -167,11 +195,12 @@ namespace nope::dts::parser
 			elem << this->parseVariable();
 		}
 
-		elem << m_input.next();
+		elem << m_input.next(false);
 
-		if (elem.last().type != TokenType::P_SEMICOLON)
+		if (elem.last().type != TokenType::P_SEMICOLON &&
+			elem.last().type != TokenType::P_NEWLINE)
 		{
-			m_input.error("Expected a ';' at the end of the declaration");
+			m_input.error("Expected a ';' or a newline at the end of the declaration");
 		}
 
 		return elem;
@@ -272,10 +301,38 @@ namespace nope::dts::parser
 		return var;
 	}
 
+	Token Parser::parseUnionType()
+	{
+		Token unionType(TokenType::UnionType);
+		bool end = false;
+
+		while (end == false)
+		{
+			unionType << this->parseType();
+
+			if (m_input.peek(0, false).type == TokenType::P_VERTICAL_BAR)
+			{
+				unionType << m_input.next();
+			}
+			else
+			{
+				end = true;
+			}
+		}
+
+		if (unionType.child.size() == 1)
+		{
+			return unionType.child[0];
+		}
+		else
+		{
+			return unionType;
+		}
+	}
+
 	Token Parser::parseType()
 	{
 		Token type(TokenType::Type);
-
 		Token peek = m_input.peek();
 
 		if (peek.type == TokenType::KW_TYPEOF)
@@ -283,7 +340,47 @@ namespace nope::dts::parser
 			type << m_input.next();
 		}
 
-		type = this->parseDotId();
+		type << this->parseDotId();
+
+		peek = m_input.peek();
+
+		if (peek.type == TokenType::P_GREATER_THAN)
+		{
+			type << m_input.next();
+
+			bool end = false;
+
+			while (end == false)
+			{
+				type << this->parseType();
+
+				if (m_input.peek().type == TokenType::P_COMMA)
+				{
+					type << m_input.next();
+				}
+				else
+				{
+					end = true;
+				}
+			}
+
+			if (m_input.peek().type != TokenType::P_LESS_THAN)
+			{
+				m_input.error("Expected a '>' at the end of the generic");
+			}
+			type << m_input.next();
+		}
+
+		while (m_input.peek().type == TokenType::P_OPEN_BRACKET)
+		{
+			type << m_input.next();
+
+			if (m_input.peek().type != TokenType::P_CLOSE_BRACKET)
+			{
+				m_input.error("Expected a ']' at the end of the array");
+			}
+			type << m_input.next();
+		}
 
 		return type;
 	}

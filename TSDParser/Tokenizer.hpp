@@ -20,8 +20,8 @@ namespace nope::dts::parser
 		Tokenizer &operator=(Tokenizer const &that) = delete;
 		Tokenizer &operator=(Tokenizer &&that) = delete;
 
-		Token peek(std::uint32_t lookAhead = 0);
-		Token next();
+		Token peek(std::uint32_t lookAhead = 0, bool skipNewline = true);
+		Token next(bool skipNewline = true);
 		bool eof() const;
 
 		void error(std::string const &message) const;
@@ -49,16 +49,20 @@ namespace nope::dts::parser
 		std::uint32_t m_realLine;
 		std::uint32_t m_realCol;
 		std::size_t m_realCursor;
+		std::uint32_t m_realLastSkipNewlineCount;
 
 		std::uint32_t *m_line;
 		std::uint32_t *m_col;
 		std::size_t *m_cursor;
+		std::uint32_t *m_lastSkipNewlineCount;
 
 		std::uint32_t m_peekLine;
 		std::uint32_t m_peekCol;
 		std::size_t m_peekCursor;
+		std::uint32_t m_peekLastSkipNewlineCount;
 
 		std::string m_input;
+
 	};
 }
 

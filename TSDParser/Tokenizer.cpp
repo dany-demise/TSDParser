@@ -11,12 +11,15 @@ namespace nope::dts::parser
 		m_realLine(1),
 		m_realCol(1),
 		m_realCursor(0),
+		m_realLastSkipNewlineCount(0),
 		m_line(&m_realLine),
 		m_col(&m_realCol),
 		m_cursor(&m_realCursor),
+		m_lastSkipNewlineCount(&m_realLastSkipNewlineCount),
 		m_peekLine(1),
 		m_peekCol(1),
 		m_peekCursor(0),
+		m_peekLastSkipNewlineCount(0),
 		m_input((std::istreambuf_iterator<char>(std::ifstream(m_filename))),
 			std::istreambuf_iterator<char>())
 	{
@@ -36,16 +39,16 @@ namespace nope::dts::parser
 	/// </summary>
 	/// <param name="lookAhead">Lookahead.</param>
 	/// <returns>The token found at this lookahead.</returns>
-	Token Tokenizer::peek(std::uint32_t lookAhead)
+	Token Tokenizer::peek(std::uint32_t lookAhead, bool skipNewline)
 	{
 		this->peekMode(true);
 
 		for (std::uint32_t i = 0; i < lookAhead; ++i)
 		{
-			this->next();
+			this->next(skipNewline);
 		}
 
-		Token token = this->next();
+		Token token = this->next(skipNewline);
 
 		this->peekMode(false);
 
@@ -56,9 +59,18 @@ namespace nope::dts::parser
 	/// Get the next token
 	/// </summary>
 	/// <returns>Next token in the input</returns>
-	Token Tokenizer::next()
+	Token Tokenizer::next(bool skipNewline)
 	{
 		Token token;
+
+		if (skipNewline == false && *m_lastSkipNewlineCount > 0)
+		{
+			(*m_lastSkipNewlineCount)--;
+			token.type = TokenType::P_NEWLINE;
+			token.value = "\n";
+
+			return token;
+		}
 
 		if (this->eof())
 		{
@@ -128,6 +140,8 @@ namespace nope::dts::parser
 	void Tokenizer::skip()
 	{
 		std::size_t lastCursorPos = *m_cursor + 1;
+		
+		*m_lastSkipNewlineCount = 0;
 
 		while (*m_cursor != lastCursorPos)
 		{
@@ -156,6 +170,7 @@ namespace nope::dts::parser
 			{
 				(*m_line)++;
 				*m_col = 1;
+				(*m_lastSkipNewlineCount)++;
 			}
 		}
 	}
@@ -207,6 +222,7 @@ namespace nope::dts::parser
 		{
 			if (m_input[*m_cursor] == '\n')
 			{
+				(*m_lastSkipNewlineCount)++;
 				(*m_line)++;
 				*m_col = 1;
 			}
@@ -316,6 +332,7 @@ namespace nope::dts::parser
 		std::pair<const char *, TokenType> val[] = {
 			{ ":", TokenType::P_COLON },
 			{ ";", TokenType::P_SEMICOLON },
+			{ "\n", TokenType::P_NEWLINE },
 			{ ".", TokenType::P_DOT },
 			{ ",", TokenType::P_COMMA },
 			{ "/", TokenType::P_SLASH },
@@ -328,7 +345,10 @@ namespace nope::dts::parser
 			{ "}", TokenType::P_CLOSE_BRACE },
 			{ "[", TokenType::P_OPEN_BRACKET },
 			{ "]", TokenType::P_CLOSE_BRACKET },
-			{ "=", TokenType::P_EQUAL }
+			{ "=", TokenType::P_EQUAL },
+			{ "|", TokenType::P_VERTICAL_BAR },
+			{ "<", TokenType::P_GREATER_THAN },
+			{ ">", TokenType::P_LESS_THAN }
 		};
 
 		for (auto const &v : val)
@@ -349,15 +369,18 @@ namespace nope::dts::parser
 			m_peekCursor = m_realCursor;
 			m_peekLine = m_realLine;
 			m_peekCol = m_realCol;
+			m_peekLastSkipNewlineCount = m_realLastSkipNewlineCount;
 			m_cursor = &m_peekCursor;
 			m_line = &m_peekLine;
 			m_col = &m_peekCol;
+			m_lastSkipNewlineCount = &m_peekLastSkipNewlineCount;
 		}
 		else
 		{
 			m_cursor = &m_realCursor;
 			m_line = &m_realLine;
 			m_col = &m_realCol;
+			m_lastSkipNewlineCount = &m_realLastSkipNewlineCount;
 		}
 	}
 }

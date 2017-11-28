@@ -148,6 +148,8 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="File.hpp" />
+    <ClInclude Include="Model.hpp" />
     <ClInclude Include="Parser.hpp" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Syntax.hpp" />

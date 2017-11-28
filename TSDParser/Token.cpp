@@ -45,6 +45,7 @@ namespace nope::dts::parser
 		case TokenType::KW_REQUIRE:
 		case TokenType::P_COLON:
 		case TokenType::P_SEMICOLON:
+		case TokenType::P_NEWLINE:
 		case TokenType::P_DOT:
 		case TokenType::P_COMMA:
 		case TokenType::P_SLASH:
@@ -58,6 +59,9 @@ namespace nope::dts::parser
 		case TokenType::P_OPEN_BRACKET:
 		case TokenType::P_CLOSE_BRACKET:
 		case TokenType::P_EQUAL:
+		case TokenType::P_VERTICAL_BAR:
+		case TokenType::P_GREATER_THAN:
+		case TokenType::P_LESS_THAN:
 		case TokenType::STRING_LITERAL:
 		case TokenType::NUMBER:
 			return true;
@@ -124,10 +128,9 @@ namespace nope::dts::parser
 		}
 		else
 		{
-			
 			ss << "\"child\":[";
 
-			for (int i = 0; i < child.size(); ++i)
+			for (std::size_t i = 0; i < child.size(); ++i)
 			{
 				if (i != 0)
 				{
@@ -150,7 +153,7 @@ namespace nope::dts::parser
 
 		std::stringstream ss;
 
-		for (int i = 0; i < child.size(); ++i)
+		for (std::size_t i = 0; i < child.size(); ++i)
 		{
 			if (i != 0)
 			{
@@ -169,7 +172,7 @@ namespace nope::dts::parser
 
 	std::ostream & operator<<(std::ostream & os, TokenType t)
 	{
-		std::string_view s;
+		std::string s;
 
 		switch (t)
 		{
@@ -242,6 +245,9 @@ namespace nope::dts::parser
 		case TokenType::P_SEMICOLON:
 			s = "P_SEMICOLON";
 			break;
+		case TokenType::P_NEWLINE:
+			s = "P_NEWLINE";
+			break;
 		case TokenType::P_DOT:
 			s = "P_DOT";
 			break;
@@ -281,6 +287,15 @@ namespace nope::dts::parser
 		case TokenType::P_EQUAL:
 			s = "P_EQUAL";
 			break;
+		case TokenType::P_VERTICAL_BAR:
+			s = "P_VERTICAL_BAR";
+			break;
+		case TokenType::P_GREATER_THAN:
+			s = "P_GREATER_THAN";
+			break;
+		case TokenType::P_LESS_THAN:
+			s = "P_LESS_THAN";
+			break;
 		case TokenType::STRING_LITERAL:
 			s = "STRING_LITERAL";
 			break;
@@ -289,6 +304,12 @@ namespace nope::dts::parser
 			break;
 		case TokenType::DotId:
 			s = "DotId";
+			break;
+		case TokenType::Type:
+			s = "Type";
+			break;
+		case TokenType::UnionType:
+			s = "UnionType";
 			break;
 		case TokenType::Variable:
 			s = "Variable";
@@ -302,14 +323,32 @@ namespace nope::dts::parser
 		case TokenType::Property:
 			s = "Property";
 			break;
+		case TokenType::ClassElement:
+			s = "ClassElement";
+			break;
 		case TokenType::Class:
 			s = "Class";
+			break;
+		case TokenType::GlobalFunction:
+			s = "GlobalFunction";
+			break;
+		case TokenType::GlobalVariable:
+			s = "GlobalVariable";
+			break;
+		case TokenType::NamespaceElement:
+			s = "NamespaceElement";
 			break;
 		case TokenType::Namespace:
 			s = "Namespace";
 			break;
+		case TokenType::FileElement:
+			s = "FileElement";
+			break;
 		case TokenType::File:
 			s = "File";
+			break;
+		default:
+			s = std::to_string(static_cast<int>(t));
 			break;
 		}
 
