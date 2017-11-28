@@ -26,6 +26,7 @@ namespace nope::dts::parser
 		case TokenType::END_OF_FILE:
 		case TokenType::ID:
 		case TokenType::KW_CLASS:
+		case TokenType::KW_INTERFACE:
 		case TokenType::KW_CONST:
 		case TokenType::KW_ENUM:
 		case TokenType::KW_EXPORT:
@@ -212,6 +213,9 @@ namespace nope::dts::parser
 		case TokenType::KW_CLASS:
 			s = "KW_CLASS";
 			break;
+		case TokenType::KW_INTERFACE:
+			s = "KW_INTERFACE";
+			break;
 		case TokenType::KW_CONST:
 			s = "KW_CONST";
 			break;
@@ -329,8 +333,14 @@ namespace nope::dts::parser
 		case TokenType::NUMBER:
 			s = "NUMBER";
 			break;
+		case TokenType::ElementKey:
+			s = "ElementKey";
+			break;
 		case TokenType::DotId:
 			s = "DotId";
+			break;
+		case TokenType::AnonymousType:
+			s = "AnonymousType";
 			break;
 		case TokenType::Type:
 			s = "Type";

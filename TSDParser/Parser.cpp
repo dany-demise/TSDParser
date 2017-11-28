@@ -38,24 +38,40 @@ namespace nope::dts::parser
 	{
 		Token elem(TokenType::FileElement);
 
-		elem << m_input.next();
-
-		if (elem[0].type != TokenType::KW_DECLARE)
+		if (m_input.peek().type == TokenType::KW_INTERFACE)
 		{
-			m_input.error("Expected a 'declare' keyword at global namespace level");
+			elem << this->parseClass();
 		}
-
-		switch (m_input.peek().type)
+		else
 		{
 
-		case TokenType::KW_MODULE:
-			elem << this->parseNamespace();
-			break;
-		default:
-			m_input.error("Expected a namespace");
-			break;
-		}
+			elem << m_input.next();
 
+			if (elem[0].type != TokenType::KW_DECLARE)
+			{
+				m_input.error("Expected a 'declare' keyword at global namespace level");
+			}
+
+			switch (m_input.peek().type)
+			{
+
+			case TokenType::KW_MODULE:
+				elem << this->parseNamespace();
+				break;
+			case TokenType::KW_VAR:
+				elem << this->parseGlobalVariable();
+				break;
+			case TokenType::KW_FUNCTION:
+				elem << this->parseGlobalFunction();
+				break;
+			case TokenType::KW_CLASS:
+				elem << this->parseClass();
+				break;
+			default:
+				m_input.error("Unexpected element");
+				break;
+			}
+		}
 		return elem;
 	}
 
@@ -99,6 +115,7 @@ namespace nope::dts::parser
 		switch (m_input.peek().type)
 		{
 		case TokenType::KW_CLASS:
+		case TokenType::KW_INTERFACE:
 			elem << this->parseClass();
 			break;
 		case TokenType::KW_MODULE:
@@ -112,6 +129,46 @@ namespace nope::dts::parser
 		return elem;
 	}
 
+	Token Parser::parseGlobalVariable()
+	{
+		Token var(TokenType::GlobalVariable);
+
+		var << m_input.next();
+
+		if (var[0].type != TokenType::KW_VAR)
+		{
+			m_input.error("Expected 'var' keyword for file level variable declaration");
+		}
+
+		var << this->parseVariable();
+
+		var << m_input.next(false);
+
+		if (var.last().type != TokenType::P_SEMICOLON &&
+			var.last().type != TokenType::P_NEWLINE)
+		{
+			m_input.error("Expected a ';' or a newline at the end of the declaration");
+		}
+
+		return var;
+	}
+
+	Token Parser::parseGlobalFunction()
+	{
+		Token func(TokenType::GlobalFunction);
+
+		func << m_input.next();
+
+		if (func[0].type != TokenType::KW_VAR)
+		{
+			m_input.error("Expected 'func' keyword for file level function declaration");
+		}
+
+		func << this->parseFunction();
+
+		return func;
+	}
+
 	Token Parser::parseClass()
 	{
 		Token clas(TokenType::Class);
@@ -120,7 +177,7 @@ namespace nope::dts::parser
 		clas << m_input.next();
 		clas << m_input.next();
 
-		if (clas[0].type != TokenType::KW_CLASS)
+		if (clas[0].type != TokenType::KW_CLASS && clas[0].type != TokenType::KW_INTERFACE)
 		{
 			m_input.error("Expected 'class' or 'interface' keyword");
 		}
@@ -303,13 +360,9 @@ namespace nope::dts::parser
 	{
 		Token func(TokenType::Function);
 
-		func << m_input.next();
+		func << this->parseElementKey();
 		func << m_input.next();
 
-		if (func[0].type != TokenType::ID)
-		{
-			m_input.error("Expected an identifier as function's name");
-		}
 		if (func[1].type != TokenType::P_OPEN_PAR)
 		{
 			m_input.error("Expected an opening parenthesis after the function's name");
@@ -371,13 +424,8 @@ namespace nope::dts::parser
 	{
 		Token var(TokenType::Variable);
 
+		var << this->parseElementKey();
 		var << m_input.next();
-		var << m_input.next();
-
-		if (var[0].type != TokenType::ID)
-		{
-			m_input.error("Expected an identifier as variable's name");
-		}
 
 		if (var[1].type == TokenType::P_QUESTION)
 		{
@@ -427,6 +475,11 @@ namespace nope::dts::parser
 	{
 		Token type(TokenType::Type);
 		Token peek = m_input.peek();
+
+		if (peek.type == TokenType::P_OPEN_BRACE)
+		{
+			return this->parseAnonymousType();
+		}
 
 		if (peek.type == TokenType::KW_TYPEOF)
 		{
@@ -478,6 +531,27 @@ namespace nope::dts::parser
 		return type;
 	}
 
+	Token Parser::parseAnonymousType()
+	{
+		Token anon(TokenType::AnonymousType);
+
+		anon << m_input.next();
+
+		if (anon[0].type != TokenType::P_OPEN_BRACE)
+		{
+			m_input.error("Expected a '{' for anonymous type declaration");
+		}
+
+		while (m_input.peek().type != TokenType::P_CLOSE_BRACE)
+		{
+			anon << this->parseClassElement();
+		}
+
+		anon << m_input.next();
+
+		return anon;
+	}
+
 	Token Parser::parseDotId()
 	{
 		Token dotId(TokenType::DotId);
@@ -496,5 +570,21 @@ namespace nope::dts::parser
 		}
 
 		return dotId;
+	}
+
+	Token Parser::parseElementKey()
+	{
+		Token elem(TokenType::ElementKey);
+
+		elem << m_input.next();
+
+		if (elem[0].type != TokenType::ID &&
+			elem[0].type != TokenType::NUMBER &&
+			elem[0].type != TokenType::STRING_LITERAL)
+		{
+			m_input.error("Expected a key (identifier, string literal or number)");
+		}
+
+		return elem;
 	}
 }

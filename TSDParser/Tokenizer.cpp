@@ -248,7 +248,7 @@ namespace nope::dts::parser
 	{
 		std::pair<const char *, TokenType> val[] = {
 			{ "class", TokenType::KW_CLASS },
-			{ "interface", TokenType::KW_CLASS },
+			{ "interface", TokenType::KW_INTERFACE },
 			{ "const", TokenType::KW_CONST },
 			{ "enum", TokenType::KW_ENUM },
 			{ "export", TokenType::KW_EXPORT },
