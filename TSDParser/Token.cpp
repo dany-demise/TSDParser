@@ -38,6 +38,7 @@ namespace nope::dts::parser
 		case TokenType::KW_IMPLEMENTS:
 		case TokenType::KW_VISIBILITY:
 		case TokenType::KW_STATIC:
+		case TokenType::KW_READONLY:
 		case TokenType::KW_AS:
 		case TokenType::KW_DECLARE:
 		case TokenType::KW_FROM:
@@ -85,7 +86,7 @@ namespace nope::dts::parser
 
 	Token & Token::operator<<(Token &&children)
 	{
-		std::cout << "Push " << children.type << " => " << children.value << std::endl;
+		std::cout << children.type << " => " << children.value << std::endl;
 		child.push_back(std::move(children));
 
 		return *this;
@@ -165,6 +166,29 @@ namespace nope::dts::parser
 		return ss.str();
 	}
 
+	std::string Token::xml() const
+	{
+		std::stringstream ss;
+
+		ss << '<' << this->type;
+
+		if (this->isTerminal())
+		{
+			 ss << " value=\"" << this->value << "\"/>";
+		}
+		else
+		{
+			ss << '>';
+			for (auto const &c : this->child)
+			{
+				ss << c.xml();
+			}
+			ss << "</" << this->type << '>';
+		}
+
+		return ss.str();
+	}
+
 	bool operator<(TokenType l, TokenType r)
 	{
 		return static_cast<int>(l) < static_cast<int>(r);
@@ -223,6 +247,9 @@ namespace nope::dts::parser
 			break;
 		case TokenType::KW_STATIC:
 			s = "KW_STATIC";
+			break;
+		case TokenType::KW_READONLY:
+			s = "KW_READONLY";
 			break;
 		case TokenType::KW_AS:
 			s = "KW_AS";
@@ -316,6 +343,9 @@ namespace nope::dts::parser
 			break;
 		case TokenType::ParameterPack:
 			s = "ParameterPack";
+			break;
+		case TokenType::ObjectCallable:
+			s = "ObjectCallable";
 			break;
 		case TokenType::Function:
 			s = "Function";

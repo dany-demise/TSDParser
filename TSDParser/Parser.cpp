@@ -133,6 +133,7 @@ namespace nope::dts::parser
 		if (clas[2].type == TokenType::P_GREATER_THAN)
 		{
 			bool end = false;
+			bool hasDefault = false;
 
 			while (end == false)
 			{
@@ -145,6 +146,17 @@ namespace nope::dts::parser
 
 				clas << m_input.next();
 
+				if (clas.last().type == TokenType::P_EQUAL)
+				{
+					clas << this->parseUnionType();
+					clas << m_input.next();
+					hasDefault = true;
+				}
+				else if (hasDefault == true)
+				{
+					m_input.error("Generic's type with default value must all be at the end");
+				}
+
 				if (clas.last().type == TokenType::P_LESS_THAN)
 				{
 					end = true;
@@ -155,6 +167,33 @@ namespace nope::dts::parser
 				}
 			}
 			clas << m_input.next();
+		}
+
+		if (clas.last().type == TokenType::KW_EXTENDS)
+		{
+			clas << this->parseDotId();
+			clas << m_input.next();
+
+			if (clas.last().type == TokenType::P_GREATER_THAN)
+			{
+				bool end = false;
+
+				while (end == false)
+				{
+					clas << this->parseUnionType();
+					clas << m_input.next();
+
+					if (clas.last().type == TokenType::P_LESS_THAN)
+					{
+						end = true;
+					}
+					else if (clas.last().type != TokenType::P_COMMA)
+					{
+						m_input.error("Expected a comma after a generic's type parameter");
+					}
+				}
+				clas << m_input.next();
+			}
 		}
 
 		if (clas.last().type != TokenType::P_OPEN_BRACE)
@@ -176,23 +215,42 @@ namespace nope::dts::parser
 	{
 		Token elem(TokenType::ClassElement);
 
-		if (m_input.peek().type == TokenType::KW_VISIBILITY)
+		if (m_input.peek().type == TokenType::P_OPEN_PAR)
 		{
-			elem << m_input.next();
-		}
-
-		if (m_input.peek().type == TokenType::KW_STATIC)
-		{
-			elem << m_input.next();
-		}
-
-		if (m_input.peek(1).type == TokenType::P_OPEN_PAR)
-		{
-			elem << this->parseFunction();
+			elem << this->parseObjectCallable();
 		}
 		else
 		{
-			elem << this->parseVariable();
+			bool isReadonly = false;
+
+			if (m_input.peek().type == TokenType::KW_VISIBILITY)
+			{
+				elem << m_input.next();
+			}
+
+			if (m_input.peek().type == TokenType::KW_STATIC)
+			{
+				elem << m_input.next();
+			}
+
+			if (m_input.peek().type == TokenType::KW_READONLY)
+			{
+				elem << m_input.next();
+				isReadonly = true;
+			}
+
+			if (m_input.peek(1).type == TokenType::P_OPEN_PAR)
+			{
+				if (isReadonly)
+				{
+					m_input.error("'readonly' can only be affected to properties, and not methods");
+				}
+				elem << this->parseFunction();
+			}
+			else
+			{
+				elem << this->parseVariable();
+			}
 		}
 
 		elem << m_input.next(false);
@@ -204,6 +262,41 @@ namespace nope::dts::parser
 		}
 
 		return elem;
+	}
+
+	Token Parser::parseObjectCallable()
+	{
+		Token func(TokenType::ObjectCallable);
+
+		func << m_input.next();
+
+		if (func[0].type != TokenType::P_OPEN_PAR)
+		{
+			m_input.error("Expected an opening parenthesis after the function's name");
+		}
+
+		if (m_input.peek().type != TokenType::P_CLOSE_PAR)
+		{
+			func << this->parseParameterPack();
+		}
+
+		func << m_input.next();
+
+		if (func.last().type != TokenType::P_CLOSE_PAR)
+		{
+			m_input.error("Expected a closing parenthesis after parameters declaration");
+		}
+
+		func << m_input.next();
+
+		if (func.last().type != TokenType::P_COLON)
+		{
+			m_input.error("Expected a ':' before the function return type");
+		}
+
+		func << this->parseUnionType();
+
+		return func;
 	}
 
 	Token Parser::parseFunction()
@@ -241,7 +334,7 @@ namespace nope::dts::parser
 			m_input.error("Expected a ':' before the function return type");
 		}
 
-		func << this->parseType();
+		func << this->parseUnionType();
 
 		return func;
 	}
@@ -296,7 +389,7 @@ namespace nope::dts::parser
 			m_input.error("Expected a ':' after the variable's name");
 		}
 
-		var << this->parseType();
+		var << this->parseUnionType();
 
 		return var;
 	}
@@ -352,7 +445,7 @@ namespace nope::dts::parser
 
 			while (end == false)
 			{
-				type << this->parseType();
+				type << this->parseUnionType();
 
 				if (m_input.peek().type == TokenType::P_COMMA)
 				{

@@ -24,6 +24,7 @@ namespace nope::dts::parser
 		KW_IMPLEMENTS,
 		KW_VISIBILITY,
 		KW_STATIC,
+		KW_READONLY,
 		KW_AS,
 		KW_DECLARE,
 		KW_FROM,
@@ -55,6 +56,7 @@ namespace nope::dts::parser
 		UnionType,
 		Variable,
 		ParameterPack,
+		ObjectCallable,
 		Function,
 		Property,
 		ClassElement,
@@ -102,6 +104,7 @@ namespace nope::dts::parser
 
 		std::string json() const;
 		std::string code() const;
+		std::string xml() const;
 	};
 
 	bool operator<(TokenType l, TokenType r);

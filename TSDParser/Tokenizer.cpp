@@ -264,6 +264,7 @@ namespace nope::dts::parser
 			{ "protected", TokenType::KW_VISIBILITY },
 			{ "public", TokenType::KW_VISIBILITY },
 			{ "static", TokenType::KW_STATIC },
+			{ "readonly", TokenType::KW_READONLY },
 			{ "from", TokenType::KW_FROM },
 			{ "declare", TokenType::KW_DECLARE },
 			{ "module", TokenType::KW_MODULE },
