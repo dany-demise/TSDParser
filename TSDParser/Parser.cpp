@@ -175,7 +175,6 @@ namespace nope::dts::parser
 
 		clas << m_input.next();
 		clas << m_input.next();
-		clas << m_input.next();
 
 		if (clas[0].type != TokenType::KW_CLASS && clas[0].type != TokenType::KW_INTERFACE)
 		{
@@ -187,69 +186,47 @@ namespace nope::dts::parser
 			m_input.error("Expected an identifier as the class's name");
 		}
 
-		if (clas[2].type == TokenType::P_GREATER_THAN)
+		if (m_input.peek().type == TokenType::P_GREATER_THAN)
 		{
-			bool end = false;
-			bool hasDefault = false;
-
-			while (end == false)
-			{
-				clas << m_input.next();
-
-				if (clas.last().type != TokenType::ID)
-				{
-					m_input.error("Expected an identifier as generic's type");
-				}
-
-				clas << m_input.next();
-
-				if (clas.last().type == TokenType::P_EQUAL)
-				{
-					clas << this->parseUnionType();
-					clas << m_input.next();
-					hasDefault = true;
-				}
-				else if (hasDefault == true)
-				{
-					m_input.error("Generic's type with default value must all be at the end");
-				}
-
-				if (clas.last().type == TokenType::P_LESS_THAN)
-				{
-					end = true;
-				}
-				else if (clas.last().type != TokenType::P_COMMA)
-				{
-					m_input.error("Expected a comma after a generic's type");
-				}
-			}
-			clas << m_input.next();
+			clas << this->parseGenericParameter();
 		}
+
+		clas << m_input.next();
 
 		if (clas.last().type == TokenType::KW_EXTENDS)
 		{
-			clas << this->parseDotId();
-			clas << m_input.next();
+			bool endExtend = false;
 
-			if (clas.last().type == TokenType::P_GREATER_THAN)
+			while (endExtend == false)
 			{
-				bool end = false;
-
-				while (end == false)
-				{
-					clas << this->parseUnionType();
-					clas << m_input.next();
-
-					if (clas.last().type == TokenType::P_LESS_THAN)
-					{
-						end = true;
-					}
-					else if (clas.last().type != TokenType::P_COMMA)
-					{
-						m_input.error("Expected a comma after a generic's type parameter");
-					}
-				}
+				clas << this->parseDotId();
 				clas << m_input.next();
+				
+				if (clas.last().type == TokenType::P_GREATER_THAN)
+				{
+					bool endGeneric = false;
+
+					while (endGeneric == false)
+					{
+						clas << this->parseUnionType();
+						clas << m_input.next();
+
+						if (clas.last().type == TokenType::P_LESS_THAN)
+						{
+							endGeneric = true;
+						}
+						else if (clas.last().type != TokenType::P_COMMA)
+						{
+							m_input.error("Expected a comma after a generic's type parameter");
+						}
+					}
+					clas << m_input.next();
+				}
+
+				if (clas.last().type != TokenType::P_COMMA)
+				{
+					endExtend = true;
+				}
 			}
 		}
 
@@ -321,6 +298,54 @@ namespace nope::dts::parser
 		return elem;
 	}
 
+	Token Parser::parseGenericParameter()
+	{
+		Token gen(TokenType::GenericParameter);
+		bool end = false;
+		bool hasDefault = false;
+
+		gen << m_input.next();
+
+		if (gen[0].type != TokenType::P_GREATER_THAN)
+		{
+			m_input.error("Expected a '<' as generic's type declaration");
+		}
+
+		while (end == false)
+		{
+			gen << m_input.next();
+
+			if (gen.last().type != TokenType::ID)
+			{
+				m_input.error("Expected an identifier as generic's type");
+			}
+
+			gen << m_input.next();
+
+			if (gen.last().type == TokenType::P_EQUAL)
+			{
+				gen << this->parseUnionType();
+				gen << m_input.next();
+				hasDefault = true;
+			}
+			else if (hasDefault == true)
+			{
+				m_input.error("Generic's type with default value must all be at the end");
+			}
+
+			if (gen.last().type == TokenType::P_LESS_THAN)
+			{
+				end = true;
+			}
+			else if (gen.last().type != TokenType::P_COMMA)
+			{
+				m_input.error("Expected a comma after a generic's type");
+			}
+		}
+
+		return gen;
+	}
+
 	Token Parser::parseObjectCallable()
 	{
 		Token func(TokenType::ObjectCallable);
@@ -361,9 +386,15 @@ namespace nope::dts::parser
 		Token func(TokenType::Function);
 
 		func << this->parseElementKey();
+		
+		if (m_input.peek().type == TokenType::P_GREATER_THAN)
+		{
+			func << this->parseGenericParameter();
+		}
+		
 		func << m_input.next();
 
-		if (func[1].type != TokenType::P_OPEN_PAR)
+		if (func.last().type != TokenType::P_OPEN_PAR)
 		{
 			m_input.error("Expected an opening parenthesis after the function's name");
 		}
@@ -480,6 +511,10 @@ namespace nope::dts::parser
 		{
 			return this->parseAnonymousType();
 		}
+		else if (peek.type == TokenType::P_OPEN_PAR)
+		{
+			return this->parseLambdaType();
+		}
 
 		if (peek.type == TokenType::KW_TYPEOF)
 		{
@@ -529,6 +564,38 @@ namespace nope::dts::parser
 		}
 
 		return type;
+	}
+
+	Token Parser::parseLambdaType()
+	{
+		Token lambda(TokenType::LambdaType);
+
+		lambda << m_input.next();
+
+		if (lambda[0].type != TokenType::P_OPEN_PAR)
+		{
+			m_input.error("Expected a '(' at the beggining of the lambda parameters declaration");
+		}
+
+		lambda << this->parseParameterPack();
+
+		lambda << m_input.next();
+
+		if (lambda.last().type != TokenType::P_CLOSE_PAR)
+		{
+			m_input.error("Expected a ')' at the end of the lambda parameters declaration");
+		}
+
+		lambda << m_input.next();
+
+		if (lambda.last().type != TokenType::P_ARROW)
+		{
+			m_input.error("Expected the arrow symbol '=>' before lambda return type declaration");
+		}
+
+		lambda << this->parseUnionType();
+
+		return lambda;
 	}
 
 	Token Parser::parseAnonymousType()

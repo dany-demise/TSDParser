@@ -45,6 +45,7 @@ namespace nope::dts::parser
 		case TokenType::KW_FROM:
 		case TokenType::KW_MODULE:
 		case TokenType::KW_REQUIRE:
+		case TokenType::P_ARROW:
 		case TokenType::P_COLON:
 		case TokenType::P_SEMICOLON:
 		case TokenType::P_NEWLINE:
@@ -279,6 +280,9 @@ namespace nope::dts::parser
 		case TokenType::P_NEWLINE:
 			s = "P_NEWLINE";
 			break;
+		case TokenType::P_ARROW:
+			s = "P_ARROW";
+			break;
 		case TokenType::P_DOT:
 			s = "P_DOT";
 			break;
@@ -348,6 +352,9 @@ namespace nope::dts::parser
 		case TokenType::UnionType:
 			s = "UnionType";
 			break;
+		case TokenType::LambdaType:
+			s = "LambdaType";
+			break;
 		case TokenType::Variable:
 			s = "Variable";
 			break;
@@ -362,6 +369,9 @@ namespace nope::dts::parser
 			break;
 		case TokenType::Property:
 			s = "Property";
+			break;
+		case TokenType::GenericParameter:
+			s = "GenericParameter";
 			break;
 		case TokenType::ClassElement:
 			s = "ClassElement";

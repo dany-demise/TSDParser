@@ -331,6 +331,7 @@ namespace nope::dts::parser
 		std::size_t begin = *m_cursor;
 
 		std::pair<const char *, TokenType> val[] = {
+			{ "=>", TokenType::P_ARROW },				// Keep the arrow before the equal token
 			{ ":", TokenType::P_COLON },
 			{ ";", TokenType::P_SEMICOLON },
 			{ "\n", TokenType::P_NEWLINE },
