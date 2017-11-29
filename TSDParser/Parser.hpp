@@ -43,6 +43,8 @@ namespace nope::dts::parser
 		Token parseVariable();
 		Token parseTypeDef();
 		Token parseFunctionTypePredicate();
+		Token parseTypeParenthesis();
+		Token parseTypeGroup();
 		Token parseUnionType();
 		Token parseType();
 		Token parseLambdaType();

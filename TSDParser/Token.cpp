@@ -423,6 +423,9 @@ namespace nope::dts::parser
 		case TokenType::LambdaType:
 			s = "LambdaType";
 			break;
+		case TokenType::TypeGroup:
+			s = "TypeGroup";
+			break;
 		case TokenType::UnionType:
 			s = "UnionType";
 			break;

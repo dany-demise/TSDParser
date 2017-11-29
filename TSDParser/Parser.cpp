@@ -65,6 +65,7 @@ namespace nope::dts::parser
 				elem << this->parseNamespace();
 				break;
 			case TokenType::KW_VAR:
+			case TokenType::KW_CONST:
 				elem << this->parseGlobalVariable();
 				needEndOfLine = true;
 				break;
@@ -159,9 +160,10 @@ namespace nope::dts::parser
 
 		var << m_input.next();
 
-		if (var[0].type != TokenType::KW_VAR)
+		if (var[0].type != TokenType::KW_VAR &&
+			var[0].type != TokenType::KW_CONST)
 		{
-			m_input.error("Expected 'var' keyword for file level variable declaration");
+			m_input.error("Expected 'var' or 'const' keyword for file level variable declaration");
 		}
 
 		var << this->parseVariable();
@@ -650,6 +652,83 @@ namespace nope::dts::parser
 		return pred;
 	}
 
+	Token Parser::parseTypeParenthesis()
+	{
+		int level = 1;
+		int i;
+
+		if (m_input.peek(0).type != TokenType::P_OPEN_PAR)
+		{
+			m_input.error("Expected a parenthesis '('");
+		}
+
+		for (i = 1; level > 0; ++i)
+		{
+			Token peek = m_input.peek(i);
+
+			if (peek.type == TokenType::P_OPEN_PAR)
+			{
+				level++;
+			}
+			else if (peek.type == TokenType::P_CLOSE_PAR)
+			{
+				level--;
+			}
+			else if (peek.type == TokenType::END_OF_FILE)
+			{
+				m_input.error("Unheaven number of parenthesis");
+			}
+		}
+
+		if (m_input.peek(i).type == TokenType::P_ARROW)
+		{
+			return this->parseLambdaType();
+		}
+		else
+		{
+			return this->parseTypeGroup();
+		}
+	}
+
+	Token Parser::parseTypeGroup()
+	{
+		Token group(TokenType::TypeGroup);
+
+		group << m_input.next();
+
+		if (group[0].type != TokenType::P_OPEN_PAR)
+		{
+			m_input.error("Expected parenthesis '(' before a type group");
+		}
+
+		group << this->parseUnionType();
+
+		group << m_input.next();
+
+		if (group.last().type != TokenType::P_CLOSE_PAR)
+		{
+			m_input.error("Expected parenthesis ')' after a type group");
+		}
+
+		while (m_input.peek().type == TokenType::P_OPEN_BRACKET)
+		{
+			group << m_input.next();
+			group << m_input.next();
+
+			if (group.last().type == TokenType::ID)
+			{
+				group << m_input.next();
+			}
+
+			if (group.last().type != TokenType::P_CLOSE_BRACKET)
+			{
+				m_input.error("Expected a ']' at the end of the array");
+			}
+		}
+
+		return group;
+	}
+
 	Token Parser::parseUnionType()
 	{
 		Token unionType(TokenType::UnionType);
@@ -695,7 +774,7 @@ namespace nope::dts::parser
 		}
 		else if (peek.type == TokenType::P_OPEN_PAR)
 		{
-			return this->parseLambdaType();
+			return this->parseTypeParenthesis();
 		}
 
 		if (peek.type == TokenType::KW_TYPEOF ||

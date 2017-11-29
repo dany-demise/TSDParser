@@ -62,6 +62,7 @@ namespace nope::dts::parser
 		Type,
 		AnonymousType,
 		LambdaType,
+		TypeGroup,
 		UnionType,
 		TypeDef,
 		FunctionTypePredicate,
