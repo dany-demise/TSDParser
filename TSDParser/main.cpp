@@ -14,7 +14,8 @@ int main(int ac, char **av)
 
 			parser.parse();
 
-			std::cout << parser.ast().xml();
+			std::cout << "OK" << std::endl;
+			//std::cout << parser.ast().json();
 		}
 	}
 	catch (nope::dts::parser::error::Syntax const &e)

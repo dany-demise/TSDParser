@@ -1,6 +1,7 @@
 #ifndef NOPE_DTS_PARSER_TOKENIZER_HPP_
 # define NOPE_DTS_PARSER_TOKENIZER_HPP_
 
+# include <functional>
 # include <string_view>
 # include <cinttypes>
 # include "Token.hpp"
@@ -22,6 +23,8 @@ namespace nope::dts::parser
 
 		Token peek(std::uint32_t lookAhead = 0, bool skipNewline = true);
 		Token next(bool skipNewline = true);
+		bool nextIf(Token &token, TokenType type, std::uint32_t lookAhead = 0, bool skipNewline = true);
+		bool nextIf(Token &token, std::function<bool()> func);
 		bool eof() const;
 
 		void error(std::string const &message) const;
@@ -45,6 +48,8 @@ namespace nope::dts::parser
 		void peekMode(bool mode);
 
 		std::string m_filename;
+
+		bool m_isPeekMode;
 
 		std::uint32_t m_realLine;
 		std::uint32_t m_realCol;

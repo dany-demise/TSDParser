@@ -33,12 +33,16 @@ namespace nope::dts::parser
 		Token parseGlobalFunction();
 		Token parseClass();
 		Token parseClassElement();
+		Token parseGenericParameterPack();
 		Token parseGenericParameter();
 		Token parseObjectCallable();
 		Token parseFunction();
 		Token parseParameterPack();
 		Token parseParameter();
+		Token parseMapObject();
 		Token parseVariable();
+		Token parseTypeDef();
+		Token parseFunctionTypePredicate();
 		Token parseUnionType();
 		Token parseType();
 		Token parseLambdaType();

@@ -37,10 +37,16 @@ namespace nope::dts::parser
 	Token Parser::parseFileElement()
 	{
 		Token elem(TokenType::FileElement);
+		bool needEndOfLine = false;
 
 		if (m_input.peek().type == TokenType::KW_INTERFACE)
 		{
 			elem << this->parseClass();
+		}
+		else if (m_input.peek().type == TokenType::KW_TYPE)
+		{
+			elem << this->parseTypeDef();
+			needEndOfLine = true;
 		}
 		else
 		{
@@ -60,18 +66,36 @@ namespace nope::dts::parser
 				break;
 			case TokenType::KW_VAR:
 				elem << this->parseGlobalVariable();
+				needEndOfLine = true;
 				break;
 			case TokenType::KW_FUNCTION:
 				elem << this->parseGlobalFunction();
+				needEndOfLine = true;
 				break;
 			case TokenType::KW_CLASS:
 				elem << this->parseClass();
+				break;
+			case TokenType::KW_TYPE:
+				elem << this->parseTypeDef();
+				needEndOfLine = true;
 				break;
 			default:
 				m_input.error("Unexpected element");
 				break;
 			}
 		}
+
+		if (needEndOfLine)
+		{
+			elem << m_input.next(false);
+
+			if (elem.last().type != TokenType::P_SEMICOLON &&
+				elem.last().type != TokenType::P_NEWLINE)
+			{
+				m_input.error("Expected a ';' or a newline at the end of the declaration");
+			}
+		}
+
 		return elem;
 	}
 
@@ -159,9 +183,9 @@ namespace nope::dts::parser
 
 		func << m_input.next();
 
-		if (func[0].type != TokenType::KW_VAR)
+		if (func[0].type != TokenType::KW_FUNCTION)
 		{
-			m_input.error("Expected 'func' keyword for file level function declaration");
+			m_input.error("Expected 'function' keyword for file level function declaration");
 		}
 
 		func << this->parseFunction();
@@ -188,7 +212,7 @@ namespace nope::dts::parser
 
 		if (m_input.peek().type == TokenType::P_GREATER_THAN)
 		{
-			clas << this->parseGenericParameter();
+			clas << this->parseGenericParameterPack();
 		}
 
 		clas << m_input.next();
@@ -253,27 +277,54 @@ namespace nope::dts::parser
 		{
 			elem << this->parseObjectCallable();
 		}
+		else if (m_input.peek().type == TokenType::P_OPEN_BRACKET)
+		{
+			if (m_input.peek().type == TokenType::KW_READONLY)
+			{
+				elem << m_input.next();
+			}
+
+			elem << this->parseMapObject();
+		}
 		else
 		{
 			bool isReadonly = false;
+			Token peek[4] = {
+				m_input.peek(0),
+				m_input.peek(1),
+				m_input.peek(2),
+				m_input.peek(3)
+			};
+			int index = 0;
 
-			if (m_input.peek().type == TokenType::KW_VISIBILITY)
+			auto check = [](Token const &token, TokenType type, Token const &peek) {
+				return token.type == type &&
+					peek.type != TokenType::P_QUESTION &&
+					peek.type != TokenType::P_COLON &&
+					peek.type != TokenType::P_OPEN_PAR &&
+					peek.type != TokenType::P_GREATER_THAN;
+			};
+			
+			if (check(peek[index], TokenType::KW_VISIBILITY, peek[index + 1]))
 			{
 				elem << m_input.next();
+				++index;
 			}
 
-			if (m_input.peek().type == TokenType::KW_STATIC)
+			if (check(peek[index], TokenType::KW_STATIC, peek[index + 1]))
 			{
 				elem << m_input.next();
+				++index;
 			}
 
-			if (m_input.peek().type == TokenType::KW_READONLY)
+			if (check(peek[index], TokenType::KW_READONLY, peek[index + 1]))
 			{
 				elem << m_input.next();
 				isReadonly = true;
 			}
 
-			if (m_input.peek(1).type == TokenType::P_OPEN_PAR)
+			if (m_input.peek(1).type == TokenType::P_OPEN_PAR ||
+				m_input.peek(1).type == TokenType::P_GREATER_THAN)
 			{
 				if (isReadonly)
 				{
@@ -287,20 +338,25 @@ namespace nope::dts::parser
 			}
 		}
 
-		elem << m_input.next(false);
-
-		if (elem.last().type != TokenType::P_SEMICOLON &&
-			elem.last().type != TokenType::P_NEWLINE)
+		if (m_input.peek(0, false).type != TokenType::P_SEMICOLON &&
+			m_input.peek(0, false).type != TokenType::P_NEWLINE &&
+			m_input.peek(0, false).type != TokenType::P_CLOSE_BRACE)
 		{
 			m_input.error("Expected a ';' or a newline at the end of the declaration");
+		}
+
+			
+		if (m_input.peek(0, false).type != TokenType::P_CLOSE_BRACE)
+		{
+			elem << m_input.next(false);
 		}
 
 		return elem;
 	}
 
-	Token Parser::parseGenericParameter()
+	Token Parser::parseGenericParameterPack()
 	{
-		Token gen(TokenType::GenericParameter);
+		Token gen(TokenType::GenericParameterPack);
 		bool end = false;
 		bool hasDefault = false;
 
@@ -313,25 +369,9 @@ namespace nope::dts::parser
 
 		while (end == false)
 		{
-			gen << m_input.next();
-
-			if (gen.last().type != TokenType::ID)
-			{
-				m_input.error("Expected an identifier as generic's type");
-			}
+			gen << this->parseGenericParameter();
 
 			gen << m_input.next();
-
-			if (gen.last().type == TokenType::P_EQUAL)
-			{
-				gen << this->parseUnionType();
-				gen << m_input.next();
-				hasDefault = true;
-			}
-			else if (hasDefault == true)
-			{
-				m_input.error("Generic's type with default value must all be at the end");
-			}
 
 			if (gen.last().type == TokenType::P_LESS_THAN)
 			{
@@ -344,6 +384,32 @@ namespace nope::dts::parser
 		}
 
 		return gen;
+	}
+
+	Token Parser::parseGenericParameter()
+	{
+		Token param(TokenType::GenericParameter);
+
+		param << m_input.next();
+
+		if (param.last().type != TokenType::ID)
+		{
+			m_input.error("Expected an identifier as generic's type");
+		}
+
+		if (m_input.peek().type == TokenType::KW_EXTENDS)
+		{
+			param << m_input.next();
+			param << this->parseUnionType();
+		}
+		
+		if (m_input.peek().type == TokenType::P_EQUAL)
+		{
+			param << m_input.next();
+			param << this->parseUnionType();
+		}
+
+		return param;
 	}
 
 	Token Parser::parseObjectCallable()
@@ -389,7 +455,7 @@ namespace nope::dts::parser
 		
 		if (m_input.peek().type == TokenType::P_GREATER_THAN)
 		{
-			func << this->parseGenericParameter();
+			func << this->parseGenericParameterPack();
 		}
 		
 		func << m_input.next();
@@ -418,7 +484,14 @@ namespace nope::dts::parser
 			m_input.error("Expected a ':' before the function return type");
 		}
 
-		func << this->parseUnionType();
+		if (m_input.peek(1).type == TokenType::KW_IS)
+		{
+			func << this->parseFunctionTypePredicate();
+		}
+		else
+		{
+			func << this->parseUnionType();
+		}
 
 		return func;
 	}
@@ -440,7 +513,7 @@ namespace nope::dts::parser
 
 	Token Parser::parseParameter()
 	{
-		Token t(TokenType::UNKNOWN);
+		Token t(TokenType::Parameter);
 
 		// TODO: uncomment this and implement parseAssignation()
 		/*if (m_input.peek(1).type == TokenType::P_EQUAL)
@@ -448,7 +521,55 @@ namespace nope::dts::parser
 			return this->parseAssignation();
 		}*/
 
-		return this->parseVariable();
+		if (m_input.peek().type == TokenType::P_SPREAD)
+		{
+			t << m_input.next();
+		}
+
+		t << this->parseVariable();
+
+		return t;
+	}
+
+	Token Parser::parseMapObject()
+	{
+		Token obj(TokenType::MapObject);
+
+		obj << m_input.next();
+		obj << m_input.next();
+		obj << m_input.next();
+		obj << m_input.next();
+		obj << m_input.next();
+		obj << m_input.next();
+
+		if (obj[0].type != TokenType::P_OPEN_BRACKET)
+		{
+			m_input.error("Expected a '[' at the beggining of a map property");
+		}
+		if (obj[1].type != TokenType::ID)
+		{
+			m_input.error("Expected a an identifier as the key name");
+		}
+		if (obj[2].type != TokenType::P_COLON)
+		{
+			m_input.error("Expected a semicolon ':' after the key name");
+		}
+		if (obj[3].type != TokenType::ID)
+		{
+			m_input.error("Expected a key type (string or number)");
+		}
+		if (obj[4].type != TokenType::P_CLOSE_BRACKET)
+		{
+			m_input.error("Expected a ']' at the end of a map key declaration");
+		}
+		if (obj[5].type != TokenType::P_COLON)
+		{
+			m_input.error("Expected a semicolon ':' after the map key declaration");
+		}
+
+		obj << this->parseUnionType();
+
+		return obj;
 	}
 
 	Token Parser::parseVariable()
@@ -456,6 +577,7 @@ namespace nope::dts::parser
 		Token var(TokenType::Variable);
 
 		var << this->parseElementKey();
+
 		var << m_input.next();
 
 		if (var[1].type == TokenType::P_QUESTION)
@@ -471,6 +593,61 @@ namespace nope::dts::parser
 		var << this->parseUnionType();
 
 		return var;
+	}
+
+	Token Parser::parseTypeDef()
+	{
+		Token def(TokenType::TypeDef);
+
+		def << m_input.next();
+		def << m_input.next();
+		def << m_input.next();
+
+		if (def[0].type != TokenType::KW_TYPE)
+		{
+			m_input.error("Expected 'type' keyword in alias type declaration");
+		}
+
+		if (def[1].isKeyword() && !def[1].isReserved())
+		{
+			def[1].type = TokenType::ID;
+		}
+
+		if (def[1].type != TokenType::ID)
+		{
+			m_input.error("Expected type alias name");
+		}
+
+		if (def[2].type != TokenType::P_EQUAL)
+		{
+			m_input.error("Expected equal symbol '=' to declare the alias type");
+		}
+
+		def << this->parseUnionType();
+
+		return def;
+	}
+
+	Token Parser::parseFunctionTypePredicate()
+	{
+		Token pred(TokenType::FunctionTypePredicate);
+
+		pred << m_input.next();
+		pred << m_input.next();
+
+		if (pred[0].type != TokenType::ID)
+		{
+			m_input.error("Expected an identifier at the beggining of a function type predicate");
+		}
+
+		if (pred[1].type != TokenType::KW_IS)
+		{
+			m_input.error("Expected the keyword 'is' in a function type predicate");
+		}
+
+		pred << this->parseUnionType();
+
+		return pred;
 	}
 
 	Token Parser::parseUnionType()
@@ -507,7 +684,12 @@ namespace nope::dts::parser
 		Token type(TokenType::Type);
 		Token peek = m_input.peek();
 
-		if (peek.type == TokenType::P_OPEN_BRACE)
+		if (peek.type == TokenType::STRING_LITERAL ||
+			peek.type == TokenType::NUMBER)
+		{
+			return m_input.next();
+		}
+		else if (peek.type == TokenType::P_OPEN_BRACE)
 		{
 			return this->parseAnonymousType();
 		}
@@ -516,7 +698,8 @@ namespace nope::dts::parser
 			return this->parseLambdaType();
 		}
 
-		if (peek.type == TokenType::KW_TYPEOF)
+		if (peek.type == TokenType::KW_TYPEOF ||
+			peek.type == TokenType::KW_KEYOF)
 		{
 			type << m_input.next();
 		}
@@ -555,12 +738,17 @@ namespace nope::dts::parser
 		while (m_input.peek().type == TokenType::P_OPEN_BRACKET)
 		{
 			type << m_input.next();
+			type << m_input.next();
 
-			if (m_input.peek().type != TokenType::P_CLOSE_BRACKET)
+			if (type.last().type == TokenType::ID)
+			{
+				type << m_input.next();
+			}
+
+			if (type.last().type != TokenType::P_CLOSE_BRACKET)
 			{
 				m_input.error("Expected a ']' at the end of the array");
 			}
-			type << m_input.next();
 		}
 
 		return type;
@@ -577,7 +765,10 @@ namespace nope::dts::parser
 			m_input.error("Expected a '(' at the beggining of the lambda parameters declaration");
 		}
 
-		lambda << this->parseParameterPack();
+		if (m_input.peek().type != TokenType::P_CLOSE_PAR)
+		{
+			lambda << this->parseParameterPack();
+		}
 
 		lambda << m_input.next();
 
@@ -644,6 +835,11 @@ namespace nope::dts::parser
 		Token elem(TokenType::ElementKey);
 
 		elem << m_input.next();
+
+		if (elem[0].isKeyword())
+		{
+			elem[0].type = TokenType::ID;
+		}
 
 		if (elem[0].type != TokenType::ID &&
 			elem[0].type != TokenType::NUMBER &&

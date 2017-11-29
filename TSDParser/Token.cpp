@@ -35,17 +35,20 @@ namespace nope::dts::parser
 		case TokenType::KW_IMPORT:
 		case TokenType::KW_IN:
 		case TokenType::KW_TYPEOF:
+		case TokenType::KW_KEYOF:
 		case TokenType::KW_VAR:
 		case TokenType::KW_IMPLEMENTS:
 		case TokenType::KW_VISIBILITY:
 		case TokenType::KW_STATIC:
 		case TokenType::KW_READONLY:
 		case TokenType::KW_AS:
+		case TokenType::KW_IS:
 		case TokenType::KW_DECLARE:
 		case TokenType::KW_FROM:
 		case TokenType::KW_MODULE:
 		case TokenType::KW_REQUIRE:
 		case TokenType::P_ARROW:
+		case TokenType::P_SPREAD:
 		case TokenType::P_COLON:
 		case TokenType::P_SEMICOLON:
 		case TokenType::P_NEWLINE:
@@ -88,7 +91,7 @@ namespace nope::dts::parser
 
 	Token & Token::operator<<(Token &&children)
 	{
-		std::cout << children.type << " => " << children.value << std::endl;
+		//std::cout << children.type << " => " << children.value << '\n';
 		child.push_back(std::move(children));
 
 		return *this;
@@ -117,6 +120,59 @@ namespace nope::dts::parser
 	Token & Token::last()
 	{
 		return child.back();
+	}
+
+	bool Token::isKeyword() const
+	{
+		switch (this->type)
+		{
+		case TokenType::KW_CLASS:
+		case TokenType::KW_INTERFACE:
+		case TokenType::KW_CONST:
+		case TokenType::KW_ENUM:
+		case TokenType::KW_EXPORT:
+		case TokenType::KW_EXTENDS:
+		case TokenType::KW_FUNCTION:
+		case TokenType::KW_IMPORT:
+		case TokenType::KW_IN:
+		case TokenType::KW_TYPEOF:
+		case TokenType::KW_TYPE:
+		case TokenType::KW_KEYOF:
+		case TokenType::KW_VAR:
+		case TokenType::KW_IMPLEMENTS:
+		case TokenType::KW_VISIBILITY:
+		case TokenType::KW_STATIC:
+		case TokenType::KW_READONLY:
+		case TokenType::KW_AS:
+		case TokenType::KW_IS:
+		case TokenType::KW_DECLARE:
+		case TokenType::KW_FROM:
+		case TokenType::KW_MODULE:
+		case TokenType::KW_REQUIRE:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	bool Token::isReserved() const
+	{
+		switch (this->type)
+		{
+		case TokenType::KW_CLASS:
+		case TokenType::KW_CONST:
+		case TokenType::KW_ENUM:
+		case TokenType::KW_EXPORT:
+		case TokenType::KW_EXTENDS:
+		case TokenType::KW_FUNCTION:
+		case TokenType::KW_IMPORT:
+		case TokenType::KW_IN:
+		case TokenType::KW_TYPEOF:
+		case TokenType::KW_VAR:
+			return true;
+		default:
+			return false;
+		}
 	}
 
 	std::string Token::json() const
@@ -241,6 +297,12 @@ namespace nope::dts::parser
 		case TokenType::KW_TYPEOF:
 			s = "KW_TYPEOF";
 			break;
+		case TokenType::KW_TYPE:
+			s = "KW_TYPE";
+			break;
+		case TokenType::KW_KEYOF:
+			s = "KW_KEYOF";
+			break;
 		case TokenType::KW_VAR:
 			s = "KW_VAR";
 			break;
@@ -258,6 +320,9 @@ namespace nope::dts::parser
 			break;
 		case TokenType::KW_AS:
 			s = "KW_AS";
+			break;
+		case TokenType::KW_IS:
+			s = "KW_IS";
 			break;
 		case TokenType::KW_DECLARE:
 			s = "KW_DECLARE";
@@ -282,6 +347,9 @@ namespace nope::dts::parser
 			break;
 		case TokenType::P_ARROW:
 			s = "P_ARROW";
+			break;
+		case TokenType::P_SPREAD:
+			s = "P_SPREAD";
 			break;
 		case TokenType::P_DOT:
 			s = "P_DOT";
@@ -346,17 +414,26 @@ namespace nope::dts::parser
 		case TokenType::AnonymousType:
 			s = "AnonymousType";
 			break;
+		case TokenType::TypeDef:
+			s = "TypeDef";
+			break;
 		case TokenType::Type:
 			s = "Type";
-			break;
-		case TokenType::UnionType:
-			s = "UnionType";
 			break;
 		case TokenType::LambdaType:
 			s = "LambdaType";
 			break;
+		case TokenType::UnionType:
+			s = "UnionType";
+			break;
+		case TokenType::FunctionTypePredicate:
+			s = "FunctionTypePredicate";
+			break;
 		case TokenType::Variable:
 			s = "Variable";
+			break;
+		case TokenType::MapObject:
+			s = "MapObject";
 			break;
 		case TokenType::ParameterPack:
 			s = "ParameterPack";
@@ -367,11 +444,17 @@ namespace nope::dts::parser
 		case TokenType::Function:
 			s = "Function";
 			break;
+		case TokenType::Parameter:
+			s = "Parameter";
+			break;
 		case TokenType::Property:
 			s = "Property";
 			break;
 		case TokenType::GenericParameter:
 			s = "GenericParameter";
+			break;
+		case TokenType::GenericParameterPack:
+			s = "GenericParameterPack";
 			break;
 		case TokenType::ClassElement:
 			s = "ClassElement";

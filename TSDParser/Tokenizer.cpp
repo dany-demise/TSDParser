@@ -8,6 +8,7 @@ namespace nope::dts::parser
 	/// <param name="filename">The filename.</param>
 	Tokenizer::Tokenizer(std::string_view filename) :
 		m_filename(filename),
+		m_isPeekMode(false),
 		m_realLine(1),
 		m_realCol(1),
 		m_realCursor(0),
@@ -50,7 +51,7 @@ namespace nope::dts::parser
 
 		Token token = this->next(skipNewline);
 
-		this->peekMode(false);
+		m_isPeekMode = false;
 
 		return token;
 	}
@@ -63,6 +64,11 @@ namespace nope::dts::parser
 	{
 		Token token;
 
+		if (m_isPeekMode == false)
+		{
+			this->peekMode(false);
+		}
+
 		if (skipNewline == false && *m_lastSkipNewlineCount > 0)
 		{
 			(*m_lastSkipNewlineCount)--;
@@ -70,6 +76,10 @@ namespace nope::dts::parser
 			token.value = "\n";
 
 			return token;
+		}
+		else
+		{
+			*m_lastSkipNewlineCount = 0;
 		}
 
 		if (this->eof())
@@ -103,6 +113,28 @@ namespace nope::dts::parser
 		return token;
 	}
 
+	bool Tokenizer::nextIf(Token & token, TokenType type, std::uint32_t lookAhead, bool skipNewline)
+	{
+		if (this->peek(lookAhead, skipNewline).type == type)
+		{
+			token << this->next(skipNewline);
+			return true;
+		}
+		return false;
+	}
+
+	bool Tokenizer::nextIf(Token & token, std::function<bool()> func)
+	{
+		bool res = func();
+
+		if (res)
+		{
+			token << this->next();
+		}
+
+		return res;
+	}
+
 	/// <summary>
 	/// Check if it reached the end of the input.
 	/// </summary>
@@ -129,7 +161,7 @@ namespace nope::dts::parser
 	/// </summary>
 	std::size_t Tokenizer::remain() const
 	{
-		if (m_input.size() > *m_cursor)
+		if (m_input.size() < *m_cursor)
 			return 0;
 		return m_input.size() - *m_cursor;
 	}
@@ -141,7 +173,7 @@ namespace nope::dts::parser
 	{
 		std::size_t lastCursorPos = *m_cursor + 1;
 		
-		*m_lastSkipNewlineCount = 0;
+		//*m_lastSkipNewlineCount = 0;
 
 		while (*m_cursor != lastCursorPos)
 		{
@@ -166,12 +198,13 @@ namespace nope::dts::parser
 				(*m_col)++;
 			}
 
-			if (this->eof() == false)
+			if (m_input[*m_cursor] == '\n')
 			{
+				(*m_cursor)++;
 				(*m_line)++;
 				*m_col = 1;
-				(*m_lastSkipNewlineCount)++;
 			}
+			(*m_lastSkipNewlineCount)++;
 		}
 	}
 
@@ -257,6 +290,8 @@ namespace nope::dts::parser
 			{ "import", TokenType::KW_IMPORT },
 			{ "in", TokenType::KW_IN },
 			{ "typeof", TokenType::KW_TYPEOF },
+			{ "type", TokenType::KW_TYPE },
+			{ "keyof", TokenType::KW_KEYOF },
 			{ "var", TokenType::KW_VAR },
 			{ "let", TokenType::KW_VAR },
 			{ "implements", TokenType::KW_IMPLEMENTS },
@@ -265,6 +300,8 @@ namespace nope::dts::parser
 			{ "public", TokenType::KW_VISIBILITY },
 			{ "static", TokenType::KW_STATIC },
 			{ "readonly", TokenType::KW_READONLY },
+			{ "as", TokenType::KW_AS },
+			{ "is", TokenType::KW_IS },
 			{ "from", TokenType::KW_FROM },
 			{ "declare", TokenType::KW_DECLARE },
 			{ "module", TokenType::KW_MODULE },
@@ -332,6 +369,7 @@ namespace nope::dts::parser
 
 		std::pair<const char *, TokenType> val[] = {
 			{ "=>", TokenType::P_ARROW },				// Keep the arrow before the equal token
+			{ "...", TokenType::P_SPREAD },
 			{ ":", TokenType::P_COLON },
 			{ ";", TokenType::P_SEMICOLON },
 			{ "\n", TokenType::P_NEWLINE },
@@ -366,6 +404,7 @@ namespace nope::dts::parser
 
 	void Tokenizer::peekMode(bool mode)
 	{
+		m_isPeekMode = mode;
 		if (mode)
 		{
 			m_peekCursor = m_realCursor;

@@ -21,17 +21,21 @@ namespace nope::dts::parser
 		KW_IMPORT,
 		KW_IN,
 		KW_TYPEOF,
+		KW_TYPE,
+		KW_KEYOF,
 		KW_VAR,
 		KW_IMPLEMENTS,
 		KW_VISIBILITY,
 		KW_STATIC,
 		KW_READONLY,
 		KW_AS,
+		KW_IS,
 		KW_DECLARE,
 		KW_FROM,
 		KW_MODULE,
 		KW_REQUIRE,
 		P_ARROW,
+		P_SPREAD,
 		P_COLON,
 		P_SEMICOLON,
 		P_NEWLINE,
@@ -59,12 +63,17 @@ namespace nope::dts::parser
 		AnonymousType,
 		LambdaType,
 		UnionType,
+		TypeDef,
+		FunctionTypePredicate,
 		Variable,
+		MapObject,
 		ParameterPack,
 		ObjectCallable,
+		Parameter,
 		Function,
 		Property,
 		GenericParameter,
+		GenericParameterPack,
 		ClassElement,
 		Class,
 		GlobalFunction,
@@ -107,6 +116,9 @@ namespace nope::dts::parser
 
 		Token const &last() const;
 		Token &last();
+
+		bool isKeyword() const;
+		bool isReserved() const;
 
 		std::string json() const;
 		std::string code() const;
