@@ -52,6 +52,43 @@ namespace nope::dts::parser
 		Token parseDotId();
 		Token parseElementKey();
 
+		void checkEndOfLine(Token &token);
+
+		inline void Parser::nextAndCheck(Token & token, TokenType type, std::string_view msg)
+		{
+			token << m_input.next();
+
+			this->checkToken(token.last(), type, msg);
+		}
+
+		inline void Parser::nextAndCheck(Token & token, std::initializer_list<TokenType> types, std::string_view msg)
+		{
+			token << m_input.next();
+
+			this->checkToken(token.last(), types, msg);
+		}
+
+		inline void Parser::checkToken(Token const & token, TokenType type, std::string_view msg) const
+		{
+			if (token.type != type)
+			{
+				m_input.error(msg);
+			}
+		}
+
+		inline void Parser::checkToken(Token const & token, std::initializer_list<TokenType> types, std::string_view msg) const
+		{
+			for (auto type : types)
+			{
+				if (token.type == type)
+				{
+					return;
+				}
+			}
+
+			m_input.error(msg);
+		}
+
 		Tokenizer m_input;
 		Token m_ast;
 	};

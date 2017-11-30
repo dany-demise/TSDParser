@@ -27,7 +27,7 @@ namespace nope::dts::parser
 		bool nextIf(Token &token, std::function<bool()> func);
 		bool eof() const;
 
-		void error(std::string const &message) const;
+		void error(std::string_view message) const;
 	private:
 		std::size_t remain() const;
 

@@ -73,7 +73,7 @@ namespace nope::dts::parser
 		{
 			(*m_lastSkipNewlineCount)--;
 			token.type = TokenType::P_NEWLINE;
-			token.value = "\n";
+			token.value = "\\n";
 
 			return token;
 		}
@@ -148,12 +148,12 @@ namespace nope::dts::parser
 	/// Throw an error with the specified message.
 	/// </summary>
 	/// <param name="message">The message.</param>
-	void Tokenizer::error(std::string const & message) const
+	void Tokenizer::error(std::string_view message) const
 	{
 		std::string location = m_filename + ':' + std::to_string(*m_line)
 			+ ':' + std::to_string(*m_col);
 
-		throw error::Syntax(location + " Error: " + message);
+		throw error::Syntax(location + " Error: " + std::string(message));
 	}
 
 	/// <summary>

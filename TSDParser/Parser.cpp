@@ -50,13 +50,8 @@ namespace nope::dts::parser
 		}
 		else
 		{
-
-			elem << m_input.next();
-
-			if (elem[0].type != TokenType::KW_DECLARE)
-			{
-				m_input.error("Expected a 'declare' keyword at global namespace level");
-			}
+			this->nextAndCheck(elem, TokenType::KW_DECLARE,
+				"Expected a 'declare' keyword at global namespace level");
 
 			switch (m_input.peek().type)
 			{
@@ -88,13 +83,7 @@ namespace nope::dts::parser
 
 		if (needEndOfLine)
 		{
-			elem << m_input.next(false);
-
-			if (elem.last().type != TokenType::P_SEMICOLON &&
-				elem.last().type != TokenType::P_NEWLINE)
-			{
-				m_input.error("Expected a ';' or a newline at the end of the declaration");
-			}
+			this->checkEndOfLine(elem);
 		}
 
 		return elem;
@@ -104,25 +93,21 @@ namespace nope::dts::parser
 	{
 		Token ns(TokenType::Namespace);
 
-		ns << m_input.next();
+
+		this->nextAndCheck(ns, TokenType::KW_MODULE,
+			"Expected 'namespace' or 'module' keyword");
+
 		ns << this->parseDotId();
-		ns << m_input.next();
 
-		if (ns[0].type != TokenType::KW_MODULE)
-		{
-			m_input.error("Expected 'namespace' or 'module' keyword, got ");
-		}
-
-		if (ns[2].type != TokenType::P_OPEN_BRACE)
-		{
-			m_input.error("Expected a '{' for namespace declaration");
-		}
+		this->nextAndCheck(ns, TokenType::P_OPEN_BRACE,
+			"Expected a '{' at the beggining of a namespace declaration");
 
 		while (m_input.peek().type != TokenType::P_CLOSE_BRACE)
 		{
 			ns << this->parseNamespaceElement();
 		}
 
+		// We know it's a P_CLOSE_BRACE
 		ns << m_input.next();
 
 		return ns;
@@ -132,10 +117,7 @@ namespace nope::dts::parser
 	{
 		Token elem(TokenType::NamespaceElement);
 
-		if (m_input.peek().type == TokenType::KW_EXPORT)
-		{
-			elem << m_input.next();
-		}
+		m_input.nextIf(elem, TokenType::KW_EXPORT);
 
 		switch (m_input.peek().type)
 		{
@@ -158,23 +140,12 @@ namespace nope::dts::parser
 	{
 		Token var(TokenType::GlobalVariable);
 
-		var << m_input.next();
-
-		if (var[0].type != TokenType::KW_VAR &&
-			var[0].type != TokenType::KW_CONST)
-		{
-			m_input.error("Expected 'var' or 'const' keyword for file level variable declaration");
-		}
+		this->nextAndCheck(var, { TokenType::KW_VAR, TokenType::KW_CONST },
+			"Expected 'var' or 'const' keyword for file level variable declaration");
 
 		var << this->parseVariable();
 
-		var << m_input.next(false);
-
-		if (var.last().type != TokenType::P_SEMICOLON &&
-			var.last().type != TokenType::P_NEWLINE)
-		{
-			m_input.error("Expected a ';' or a newline at the end of the declaration");
-		}
+		this->checkEndOfLine(var);
 
 		return var;
 	}
@@ -183,12 +154,8 @@ namespace nope::dts::parser
 	{
 		Token func(TokenType::GlobalFunction);
 
-		func << m_input.next();
-
-		if (func[0].type != TokenType::KW_FUNCTION)
-		{
-			m_input.error("Expected 'function' keyword for file level function declaration");
-		}
+		this->nextAndCheck(func, TokenType::KW_FUNCTION,
+			"Expected 'function' keyword for file level function declaration");
 
 		func << this->parseFunction();
 
@@ -199,18 +166,11 @@ namespace nope::dts::parser
 	{
 		Token clas(TokenType::Class);
 
-		clas << m_input.next();
-		clas << m_input.next();
+		this->nextAndCheck(clas, { TokenType::KW_CLASS, TokenType::KW_INTERFACE },
+			"Expected 'class' or 'interface' keyword");
 
-		if (clas[0].type != TokenType::KW_CLASS && clas[0].type != TokenType::KW_INTERFACE)
-		{
-			m_input.error("Expected 'class' or 'interface' keyword");
-		}
-
-		if (clas[1].type != TokenType::ID)
-		{
-			m_input.error("Expected an identifier as the class's name");
-		}
+		this->nextAndCheck(clas, TokenType::ID,
+			"Expected an identifier as the class's name");
 
 		if (m_input.peek().type == TokenType::P_GREATER_THAN)
 		{
@@ -241,9 +201,10 @@ namespace nope::dts::parser
 						{
 							endGeneric = true;
 						}
-						else if (clas.last().type != TokenType::P_COMMA)
+						else
 						{
-							m_input.error("Expected a comma after a generic's type parameter");
+							this->checkToken(clas.last(), TokenType::P_COMMA,
+								"Expected a comma after a generic's type parameter");
 						}
 					}
 					clas << m_input.next();
@@ -256,16 +217,15 @@ namespace nope::dts::parser
 			}
 		}
 
-		if (clas.last().type != TokenType::P_OPEN_BRACE)
-		{
-			m_input.error("Expected a '{' for class declaration");
-		}
+		this->checkToken(clas.last(), TokenType::P_OPEN_BRACE,
+			"Expected a '{' for class declaration");
 
 		while (m_input.peek().type != TokenType::P_CLOSE_BRACE)
 		{
 			clas << this->parseClassElement();
 		}
 
+		// We are sure it's a P_CLOSE_BRACE
 		clas << m_input.next();
 
 		return clas;
@@ -281,10 +241,7 @@ namespace nope::dts::parser
 		}
 		else if (m_input.peek().type == TokenType::P_OPEN_BRACKET)
 		{
-			if (m_input.peek().type == TokenType::KW_READONLY)
-			{
-				elem << m_input.next();
-			}
+			m_input.nextIf(elem, TokenType::KW_READONLY);
 
 			elem << this->parseMapObject();
 		}
@@ -299,31 +256,25 @@ namespace nope::dts::parser
 			};
 			int index = 0;
 
-			auto check = [](Token const &token, TokenType type, Token const &peek) {
-				return token.type == type &&
-					peek.type != TokenType::P_QUESTION &&
-					peek.type != TokenType::P_COLON &&
-					peek.type != TokenType::P_OPEN_PAR &&
-					peek.type != TokenType::P_GREATER_THAN;
+			auto *input = &m_input;
+
+			auto check = [&elem, &peek, &index, input](TokenType type) {
+				if (peek[index].type == type &&
+					peek[index + 1].type != TokenType::P_QUESTION &&
+					peek[index + 1].type != TokenType::P_COLON &&
+					peek[index + 1].type != TokenType::P_OPEN_PAR &&
+					peek[index + 1].type != TokenType::P_GREATER_THAN)
+				{
+					elem << input->next();
+					++index;
+					return true;
+				}
+				return false;
 			};
 			
-			if (check(peek[index], TokenType::KW_VISIBILITY, peek[index + 1]))
-			{
-				elem << m_input.next();
-				++index;
-			}
-
-			if (check(peek[index], TokenType::KW_STATIC, peek[index + 1]))
-			{
-				elem << m_input.next();
-				++index;
-			}
-
-			if (check(peek[index], TokenType::KW_READONLY, peek[index + 1]))
-			{
-				elem << m_input.next();
-				isReadonly = true;
-			}
+			check(TokenType::KW_VISIBILITY);
+			check(TokenType::KW_STATIC);
+			isReadonly = check(TokenType::KW_READONLY);
 
 			if (m_input.peek(1).type == TokenType::P_OPEN_PAR ||
 				m_input.peek(1).type == TokenType::P_GREATER_THAN)
@@ -340,17 +291,9 @@ namespace nope::dts::parser
 			}
 		}
 
-		if (m_input.peek(0, false).type != TokenType::P_SEMICOLON &&
-			m_input.peek(0, false).type != TokenType::P_NEWLINE &&
-			m_input.peek(0, false).type != TokenType::P_CLOSE_BRACE)
-		{
-			m_input.error("Expected a ';' or a newline at the end of the declaration");
-		}
-
-			
 		if (m_input.peek(0, false).type != TokenType::P_CLOSE_BRACE)
 		{
-			elem << m_input.next(false);
+			this->checkEndOfLine(elem);
 		}
 
 		return elem;
@@ -362,12 +305,8 @@ namespace nope::dts::parser
 		bool end = false;
 		bool hasDefault = false;
 
-		gen << m_input.next();
-
-		if (gen[0].type != TokenType::P_GREATER_THAN)
-		{
-			m_input.error("Expected a '<' as generic's type declaration");
-		}
+		this->nextAndCheck(gen, TokenType::P_GREATER_THAN,
+			"Expected a '<' as generic's type declaration");
 
 		while (end == false)
 		{
@@ -379,9 +318,10 @@ namespace nope::dts::parser
 			{
 				end = true;
 			}
-			else if (gen.last().type != TokenType::P_COMMA)
+			else
 			{
-				m_input.error("Expected a comma after a generic's type");
+				this->checkToken(gen.last(), TokenType::P_COMMA,
+					"Expected a comma after a generic's type");
 			}
 		}
 
@@ -392,22 +332,16 @@ namespace nope::dts::parser
 	{
 		Token param(TokenType::GenericParameter);
 
-		param << m_input.next();
+		this->nextAndCheck(param, TokenType::ID,
+			"Expected an identifier as generic's type");
 
-		if (param.last().type != TokenType::ID)
+		if (m_input.nextIf(param, TokenType::KW_EXTENDS))
 		{
-			m_input.error("Expected an identifier as generic's type");
-		}
-
-		if (m_input.peek().type == TokenType::KW_EXTENDS)
-		{
-			param << m_input.next();
 			param << this->parseUnionType();
 		}
-		
-		if (m_input.peek().type == TokenType::P_EQUAL)
+
+		if (m_input.nextIf(param, TokenType::P_EQUAL))
 		{
-			param << m_input.next();
 			param << this->parseUnionType();
 		}
 
@@ -418,31 +352,19 @@ namespace nope::dts::parser
 	{
 		Token func(TokenType::ObjectCallable);
 
-		func << m_input.next();
-
-		if (func[0].type != TokenType::P_OPEN_PAR)
-		{
-			m_input.error("Expected an opening parenthesis after the function's name");
-		}
+		this->nextAndCheck(func, TokenType::P_OPEN_PAR,
+			"Expected an opening parenthesis after the function's name");
 
 		if (m_input.peek().type != TokenType::P_CLOSE_PAR)
 		{
 			func << this->parseParameterPack();
 		}
 
-		func << m_input.next();
+		this->nextAndCheck(func, TokenType::P_CLOSE_PAR,
+			"Expected a closing parenthesis after parameters declaration");
 
-		if (func.last().type != TokenType::P_CLOSE_PAR)
-		{
-			m_input.error("Expected a closing parenthesis after parameters declaration");
-		}
-
-		func << m_input.next();
-
-		if (func.last().type != TokenType::P_COLON)
-		{
-			m_input.error("Expected a ':' before the function return type");
-		}
+		this->nextAndCheck(func, TokenType::P_COLON,
+			"Expected a ':' before the function return type");
 
 		func << this->parseUnionType();
 
@@ -460,31 +382,19 @@ namespace nope::dts::parser
 			func << this->parseGenericParameterPack();
 		}
 		
-		func << m_input.next();
-
-		if (func.last().type != TokenType::P_OPEN_PAR)
-		{
-			m_input.error("Expected an opening parenthesis after the function's name");
-		}
+		this->nextAndCheck(func, TokenType::P_OPEN_PAR,
+			"Expected an opening parenthesis after the function's name");
 
 		if (m_input.peek().type != TokenType::P_CLOSE_PAR)
 		{
 			func << this->parseParameterPack();
 		}
 
-		func << m_input.next();
+		this->nextAndCheck(func, TokenType::P_CLOSE_PAR,
+			"Expected a closing parenthesis after parameters declaration");
 
-		if (func.last().type != TokenType::P_CLOSE_PAR)
-		{
-			m_input.error("Expected a closing parenthesis after parameters declaration");
-		}
-
-		func << m_input.next();
-
-		if (func.last().type != TokenType::P_COLON)
-		{
-			m_input.error("Expected a ':' before the function return type");
-		}
+		this->nextAndCheck(func, TokenType::P_COLON,
+			"Expected a ':' before the function return type");
 
 		if (m_input.peek(1).type == TokenType::KW_IS)
 		{
@@ -504,9 +414,8 @@ namespace nope::dts::parser
 
 		pack << this->parseParameter();
 
-		while (m_input.peek().type == TokenType::P_COMMA)
+		while (m_input.nextIf(pack, TokenType::P_COMMA))
 		{
-			pack << m_input.next();
 			pack << this->parseParameter();
 		}
 
@@ -523,10 +432,7 @@ namespace nope::dts::parser
 			return this->parseAssignation();
 		}*/
 
-		if (m_input.peek().type == TokenType::P_SPREAD)
-		{
-			t << m_input.next();
-		}
+		m_input.nextIf(t, TokenType::P_SPREAD);
 
 		t << this->parseVariable();
 
@@ -537,37 +443,18 @@ namespace nope::dts::parser
 	{
 		Token obj(TokenType::MapObject);
 
-		obj << m_input.next();
-		obj << m_input.next();
-		obj << m_input.next();
-		obj << m_input.next();
-		obj << m_input.next();
-		obj << m_input.next();
-
-		if (obj[0].type != TokenType::P_OPEN_BRACKET)
-		{
-			m_input.error("Expected a '[' at the beggining of a map property");
-		}
-		if (obj[1].type != TokenType::ID)
-		{
-			m_input.error("Expected a an identifier as the key name");
-		}
-		if (obj[2].type != TokenType::P_COLON)
-		{
-			m_input.error("Expected a semicolon ':' after the key name");
-		}
-		if (obj[3].type != TokenType::ID)
-		{
-			m_input.error("Expected a key type (string or number)");
-		}
-		if (obj[4].type != TokenType::P_CLOSE_BRACKET)
-		{
-			m_input.error("Expected a ']' at the end of a map key declaration");
-		}
-		if (obj[5].type != TokenType::P_COLON)
-		{
-			m_input.error("Expected a semicolon ':' after the map key declaration");
-		}
+		this->nextAndCheck(obj, TokenType::P_OPEN_BRACKET,
+			"Expected a '[' at the beggining of a map property");
+		this->nextAndCheck(obj, TokenType::ID,
+			"Expected a an identifier as the key name");
+		this->nextAndCheck(obj, TokenType::P_COLON,
+			"Expected a semicolon ':' after the key name");
+		this->nextAndCheck(obj, TokenType::ID,
+			"Expected a key type(string or number)");
+		this->nextAndCheck(obj, TokenType::P_CLOSE_BRACKET,
+			"Expected a ']' at the end of a map key declaration");
+		this->nextAndCheck(obj, TokenType::P_COLON,
+			"Expected a semicolon ':' after the map key declaration");
 
 		obj << this->parseUnionType();
 
@@ -580,17 +467,10 @@ namespace nope::dts::parser
 
 		var << this->parseElementKey();
 
-		var << m_input.next();
+		m_input.nextIf(var, TokenType::P_QUESTION);
 
-		if (var[1].type == TokenType::P_QUESTION)
-		{
-			var << m_input.next();
-		}
-
-		if (var.last().type != TokenType::P_COLON)
-		{
-			m_input.error("Expected a ':' after the variable's name");
-		}
+		this->nextAndCheck(var, TokenType::P_COLON,
+			"Expected a ':' after the variable's name");
 
 		var << this->parseUnionType();
 
@@ -601,29 +481,19 @@ namespace nope::dts::parser
 	{
 		Token def(TokenType::TypeDef);
 
-		def << m_input.next();
-		def << m_input.next();
-		def << m_input.next();
+		
+		this->nextAndCheck(def, TokenType::KW_TYPE,
+			"Expected 'type' keyword in alias type declaration");
 
-		if (def[0].type != TokenType::KW_TYPE)
-		{
-			m_input.error("Expected 'type' keyword in alias type declaration");
-		}
-
+		def << m_input.next();
 		if (def[1].isKeyword() && !def[1].isReserved())
 		{
 			def[1].type = TokenType::ID;
 		}
+		this->checkToken(def[1], TokenType::ID, "Expected type alias name");
 
-		if (def[1].type != TokenType::ID)
-		{
-			m_input.error("Expected type alias name");
-		}
-
-		if (def[2].type != TokenType::P_EQUAL)
-		{
-			m_input.error("Expected equal symbol '=' to declare the alias type");
-		}
+		this->nextAndCheck(def, TokenType::P_EQUAL,
+			"Expected equal symbol '=' to declare the alias type");
 
 		def << this->parseUnionType();
 
@@ -634,18 +504,11 @@ namespace nope::dts::parser
 	{
 		Token pred(TokenType::FunctionTypePredicate);
 
-		pred << m_input.next();
-		pred << m_input.next();
+		this->nextAndCheck(pred, TokenType::ID,
+			"Expected an identifier at the beggining of a function type predicate");
 
-		if (pred[0].type != TokenType::ID)
-		{
-			m_input.error("Expected an identifier at the beggining of a function type predicate");
-		}
-
-		if (pred[1].type != TokenType::KW_IS)
-		{
-			m_input.error("Expected the keyword 'is' in a function type predicate");
-		}
+		this->nextAndCheck(pred, TokenType::KW_IS,
+			"Expected the keyword 'is' in a function type predicate");
 
 		pred << this->parseUnionType();
 
@@ -657,10 +520,8 @@ namespace nope::dts::parser
 		int level = 1;
 		int i;
 
-		if (m_input.peek(0).type != TokenType::P_OPEN_PAR)
-		{
-			m_input.error("Expected a parenthesis '('");
-		}
+		this->checkToken(m_input.peek(), TokenType::P_OPEN_PAR,
+			"Expected a parenthesis '('");
 
 		for (i = 1; level > 0; ++i)
 		{
@@ -694,36 +555,20 @@ namespace nope::dts::parser
 	{
 		Token group(TokenType::TypeGroup);
 
-		group << m_input.next();
-
-		if (group[0].type != TokenType::P_OPEN_PAR)
-		{
-			m_input.error("Expected parenthesis '(' before a type group");
-		}
+		this->nextAndCheck(group, TokenType::P_OPEN_PAR,
+			"Expected parenthesis '(' before a type group");
 
 		group << this->parseUnionType();
 
-		group << m_input.next();
+		this->nextAndCheck(group, TokenType::P_CLOSE_PAR,
+			"Expected parenthesis ')' after a type group");
 
-		if (group.last().type != TokenType::P_CLOSE_PAR)
+		while (m_input.nextIf(group, TokenType::P_OPEN_BRACKET))
 		{
-			m_input.error("Expected parenthesis ')' after a type group");
-		}
+			m_input.nextIf(group, TokenType::ID);
 
-		while (m_input.peek().type == TokenType::P_OPEN_BRACKET)
-		{
-			group << m_input.next();
-			group << m_input.next();
-
-			if (group.last().type == TokenType::ID)
-			{
-				group << m_input.next();
-			}
-
-			if (group.last().type != TokenType::P_CLOSE_BRACKET)
-			{
-				m_input.error("Expected a ']' at the end of the array");
-			}
+			this->nextAndCheck(group, TokenType::P_CLOSE_BRACKET,
+				"Expected a ']' at the end of the array");
 		}
 
 		return group;
@@ -738,11 +583,7 @@ namespace nope::dts::parser
 		{
 			unionType << this->parseType();
 
-			if (m_input.peek(0, false).type == TokenType::P_VERTICAL_BAR)
-			{
-				unionType << m_input.next();
-			}
-			else
+			if (!m_input.nextIf(unionType, TokenType::P_VERTICAL_BAR))
 			{
 				end = true;
 			}
@@ -785,49 +626,32 @@ namespace nope::dts::parser
 
 		type << this->parseDotId();
 
-		peek = m_input.peek();
-
-		if (peek.type == TokenType::P_GREATER_THAN)
+		if (m_input.nextIf(type, TokenType::P_GREATER_THAN))
 		{
-			type << m_input.next();
-
 			bool end = false;
 
 			while (end == false)
 			{
 				type << this->parseUnionType();
 
-				if (m_input.peek().type == TokenType::P_COMMA)
-				{
-					type << m_input.next();
-				}
-				else
+				if (!m_input.nextIf(type, TokenType::P_COMMA))
 				{
 					end = true;
 				}
 			}
 
-			if (m_input.peek().type != TokenType::P_LESS_THAN)
-			{
-				m_input.error("Expected a '>' at the end of the generic");
-			}
+			this->checkToken(m_input.peek(), TokenType::P_LESS_THAN,
+				"Expected a '>' at the end of the generic");
+			
 			type << m_input.next();
 		}
 
-		while (m_input.peek().type == TokenType::P_OPEN_BRACKET)
+		while (m_input.nextIf(type, TokenType::P_OPEN_BRACKET))
 		{
-			type << m_input.next();
-			type << m_input.next();
+			m_input.nextIf(type, TokenType::ID);
 
-			if (type.last().type == TokenType::ID)
-			{
-				type << m_input.next();
-			}
-
-			if (type.last().type != TokenType::P_CLOSE_BRACKET)
-			{
-				m_input.error("Expected a ']' at the end of the array");
-			}
+			this->nextAndCheck(type, TokenType::P_CLOSE_BRACKET,
+				"Expected a ']' at the end of the array");
 		}
 
 		return type;
@@ -837,31 +661,19 @@ namespace nope::dts::parser
 	{
 		Token lambda(TokenType::LambdaType);
 
-		lambda << m_input.next();
-
-		if (lambda[0].type != TokenType::P_OPEN_PAR)
-		{
-			m_input.error("Expected a '(' at the beggining of the lambda parameters declaration");
-		}
+		this->nextAndCheck(lambda, TokenType::P_OPEN_PAR, 
+			"Expected a '(' at the beggining of the lambda parameters declaration");
 
 		if (m_input.peek().type != TokenType::P_CLOSE_PAR)
 		{
 			lambda << this->parseParameterPack();
 		}
 
-		lambda << m_input.next();
+		this->nextAndCheck(lambda, TokenType::P_CLOSE_PAR,
+			"Expected a ')' at the end of the lambda parameters declaration");
 
-		if (lambda.last().type != TokenType::P_CLOSE_PAR)
-		{
-			m_input.error("Expected a ')' at the end of the lambda parameters declaration");
-		}
-
-		lambda << m_input.next();
-
-		if (lambda.last().type != TokenType::P_ARROW)
-		{
-			m_input.error("Expected the arrow symbol '=>' before lambda return type declaration");
-		}
+		this->nextAndCheck(lambda, TokenType::P_ARROW, 
+			"Expected the arrow symbol '=>' before lambda return type declaration");
 
 		lambda << this->parseUnionType();
 
@@ -872,18 +684,15 @@ namespace nope::dts::parser
 	{
 		Token anon(TokenType::AnonymousType);
 
-		anon << m_input.next();
-
-		if (anon[0].type != TokenType::P_OPEN_BRACE)
-		{
-			m_input.error("Expected a '{' for anonymous type declaration");
-		}
+		this->nextAndCheck(anon, TokenType::P_OPEN_BRACE,
+			"Expected a '{' for anonymous type declaration");
 
 		while (m_input.peek().type != TokenType::P_CLOSE_BRACE)
 		{
 			anon << this->parseClassElement();
 		}
 
+		// We know it's a P_CLOSE_BRACE
 		anon << m_input.next();
 
 		return anon;
@@ -893,17 +702,11 @@ namespace nope::dts::parser
 	{
 		Token dotId(TokenType::DotId);
 
-		dotId << m_input.next();
+		this->nextAndCheck(dotId, TokenType::ID, "Expected an identifier");
 
-		if (dotId[0].type != TokenType::ID)
+		while (m_input.nextIf(dotId, TokenType::P_DOT))
 		{
-			m_input.error("Expected an identifier");
-		}
-
-		while (m_input.peek(0).type == TokenType::P_DOT && m_input.peek(1).type == TokenType::ID)
-		{
-			dotId << m_input.next();
-			dotId << m_input.next();
+			this->nextAndCheck(dotId, TokenType::ID, "Expected an identifier");
 		}
 
 		return dotId;
@@ -920,13 +723,17 @@ namespace nope::dts::parser
 			elem[0].type = TokenType::ID;
 		}
 
-		if (elem[0].type != TokenType::ID &&
-			elem[0].type != TokenType::NUMBER &&
-			elem[0].type != TokenType::STRING_LITERAL)
-		{
-			m_input.error("Expected a key (identifier, string literal or number)");
-		}
+		this->checkToken(elem[0], { TokenType::ID, TokenType::NUMBER, TokenType::STRING_LITERAL },
+			"Expected a key (identifier, string literal or number)");
 
 		return elem;
+	}
+
+	void Parser::checkEndOfLine(Token & token)
+	{
+		token << m_input.next(false);
+
+		this->checkToken(token.last(), { TokenType::P_SEMICOLON, TokenType::P_NEWLINE },
+			"Expected a ';' or a newline at the end of the declaration");
 	}
 }
