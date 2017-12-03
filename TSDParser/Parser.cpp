@@ -48,16 +48,37 @@ namespace nope::dts::parser
 			elem << this->parseTypeDef();
 			needEndOfLine = true;
 		}
+		else if (m_input.peek().type == TokenType::KW_IMPORT)
+		{
+			elem << this->parseImport();
+			needEndOfLine = true;
+		}
+		else if (m_input.peek().type == TokenType::KW_EXPORT &&
+			m_input.peek(1).type == TokenType::P_EQUAL)
+		{
+			elem << this->parseExport();
+			needEndOfLine = true;
+		}
 		else
 		{
-			this->nextAndCheck(elem, TokenType::KW_DECLARE,
-				"Expected a 'declare' keyword at global namespace level");
+			this->nextAndCheck(elem, { TokenType::KW_DECLARE, TokenType::KW_EXPORT },
+				"Expected a 'declare' or 'export' keyword at global namespace level");
 
 			switch (m_input.peek().type)
 			{
 
 			case TokenType::KW_MODULE:
 				elem << this->parseNamespace();
+				break;
+			case TokenType::ID:
+				if (m_input.peek().value == "global")
+				{
+					elem << this->parseNamespace();
+				}
+				else
+				{
+					m_input.error("Unexpected element");
+				}
 				break;
 			case TokenType::KW_VAR:
 			case TokenType::KW_CONST:
@@ -69,6 +90,7 @@ namespace nope::dts::parser
 				needEndOfLine = true;
 				break;
 			case TokenType::KW_CLASS:
+			case TokenType::KW_INTERFACE:
 				elem << this->parseClass();
 				break;
 			case TokenType::KW_TYPE:
@@ -89,15 +111,88 @@ namespace nope::dts::parser
 		return elem;
 	}
 
+	Token Parser::parseImport()
+	{
+		Token import(TokenType::Import);
+
+		this->nextAndCheck(import, TokenType::KW_IMPORT,
+			"Expected the 'import' keyword for and import declaration");
+
+		if (m_input.nextIf(import, TokenType::STRING_LITERAL))
+		{
+			return import;
+		}
+
+		if (m_input.nextIf(import, TokenType::P_OPEN_BRACE))
+		{
+			this->nextAndCheck(import, TokenType::ID,
+				"Expected an identifier as import name");
+
+			if (m_input.nextIf(import, TokenType::KW_AS))
+			{
+				this->nextAndCheck(import, TokenType::ID,
+					"Expected an identifier as import alias name");
+			}
+
+			this->nextAndCheck(import, TokenType::P_CLOSE_BRACE,
+				"Expected a closing brace '}'");
+		}
+		else
+		{
+			this->nextAndCheck(import, { TokenType::ID, TokenType::P_STAR },
+				"Expected an identifier or a '*' as import name");
+
+			if (m_input.nextIf(import, TokenType::KW_AS))
+			{
+				this->nextAndCheck(import, TokenType::ID,
+					"Expected an identifier as import alias name");
+			}
+
+			this->nextAndCheck(import, TokenType::P_CLOSE_BRACE,
+				"Expected a closing brace '}'");
+		}
+
+		this->nextAndCheck(import, TokenType::KW_FROM,
+			"Expected the keyword 'from' in import declaration");
+
+		this->nextAndCheck(import, TokenType::STRING_LITERAL,
+			"Expected a string a imported from file");
+
+		return (import);
+	}
+
+	Token Parser::parseExport()
+	{
+		Token exp(TokenType::Export);
+
+		this->nextAndCheck(exp, TokenType::KW_EXPORT,
+			"Expected 'export' keyword");
+
+		this->nextAndCheck(exp, TokenType::P_EQUAL,
+			"Expected an equal sign '='");
+
+		exp << this->parseDotId();
+
+		return exp;
+	}
+
 	Token Parser::parseNamespace()
 	{
 		Token ns(TokenType::Namespace);
 
 
-		this->nextAndCheck(ns, TokenType::KW_MODULE,
+		this->nextAndCheck(ns, { TokenType::KW_MODULE, TokenType::ID },
 			"Expected 'namespace' or 'module' keyword");
 
-		ns << this->parseDotId();
+		if (ns[0].type == TokenType::ID && ns[0].value != "global")
+		{
+			m_input.error("Unexpected identifier");
+		}
+
+		if (ns[0].type != TokenType::ID)
+		{
+			ns << this->parseDotId();
+		}
 
 		this->nextAndCheck(ns, TokenType::P_OPEN_BRACE,
 			"Expected a '{' at the beggining of a namespace declaration");
@@ -128,8 +223,21 @@ namespace nope::dts::parser
 		case TokenType::KW_MODULE:
 			elem << this->parseNamespace();
 			break;
+		case TokenType::KW_TYPE:
+			elem << this->parseTypeDef();
+			this->checkEndOfLine(elem);
+			break;
+		case TokenType::KW_FUNCTION:
+			elem << this->parseGlobalFunction();
+			this->checkEndOfLine(elem);
+			break;
+		case TokenType::KW_VAR:
+		case TokenType::KW_CONST:
+			elem << this->parseGlobalVariable();
+			this->checkEndOfLine(elem);
+			break;
 		default:
-			m_input.error("Expected a class or namespace");
+			m_input.error("Expected a class, a namespace or a type");
 			break;
 		}
 
@@ -245,6 +353,10 @@ namespace nope::dts::parser
 
 			elem << this->parseMapObject();
 		}
+		else if (m_input.peek().type == TokenType::KW_CONSTRUCTOR)
+		{
+			elem << this->parseConstructor();
+		}
 		else
 		{
 			bool isReadonly = false;
@@ -277,7 +389,9 @@ namespace nope::dts::parser
 			isReadonly = check(TokenType::KW_READONLY);
 
 			if (m_input.peek(1).type == TokenType::P_OPEN_PAR ||
-				m_input.peek(1).type == TokenType::P_GREATER_THAN)
+				m_input.peek(1).type == TokenType::P_GREATER_THAN ||
+				(m_input.peek(1).type == TokenType::P_QUESTION &&
+				m_input.peek(2).type == TokenType::P_OPEN_PAR))
 			{
 				if (isReadonly)
 				{
@@ -381,7 +495,11 @@ namespace nope::dts::parser
 		{
 			func << this->parseGenericParameterPack();
 		}
-		
+		else
+		{
+			m_input.nextIf(func, TokenType::P_QUESTION);
+		}
+
 		this->nextAndCheck(func, TokenType::P_OPEN_PAR,
 			"Expected an opening parenthesis after the function's name");
 
@@ -406,6 +524,27 @@ namespace nope::dts::parser
 		}
 
 		return func;
+	}
+
+	Token Parser::parseConstructor()
+	{
+		Token constructor(TokenType::Constructor);
+
+		this->nextAndCheck(constructor, TokenType::KW_CONSTRUCTOR,
+			"Expected the 'constructor' keyword as a constructor name");
+
+		this->nextAndCheck(constructor, TokenType::P_OPEN_PAR,
+			"Expected an opening parenthesis after the constructor's name");
+
+		if (m_input.peek().type != TokenType::P_CLOSE_PAR)
+		{
+			constructor << this->parseParameterPack();
+		}
+
+		this->nextAndCheck(constructor, TokenType::P_CLOSE_PAR,
+			"Expected a closing parenthesis after parameters declaration");
+
+		return constructor;
 	}
 
 	Token Parser::parseParameterPack()
@@ -491,6 +630,11 @@ namespace nope::dts::parser
 			def[1].type = TokenType::ID;
 		}
 		this->checkToken(def[1], TokenType::ID, "Expected type alias name");
+
+		if (m_input.peek().type == TokenType::P_GREATER_THAN)
+		{
+			def << this->parseGenericParameterPack();
+		}
 
 		this->nextAndCheck(def, TokenType::P_EQUAL,
 			"Expected equal symbol '=' to declare the alias type");

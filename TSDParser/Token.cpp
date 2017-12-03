@@ -32,6 +32,7 @@ namespace nope::dts::parser
 		case TokenType::KW_EXPORT:
 		case TokenType::KW_EXTENDS:
 		case TokenType::KW_FUNCTION:
+		case TokenType::KW_CONSTRUCTOR:
 		case TokenType::KW_IMPORT:
 		case TokenType::KW_IN:
 		case TokenType::KW_TYPEOF:
@@ -68,6 +69,7 @@ namespace nope::dts::parser
 		case TokenType::P_VERTICAL_BAR:
 		case TokenType::P_GREATER_THAN:
 		case TokenType::P_LESS_THAN:
+		case TokenType::P_AMPERSAND:
 		case TokenType::STRING_LITERAL:
 		case TokenType::NUMBER:
 			return true;
@@ -149,6 +151,7 @@ namespace nope::dts::parser
 		case TokenType::KW_FROM:
 		case TokenType::KW_MODULE:
 		case TokenType::KW_REQUIRE:
+		case TokenType::KW_CONSTRUCTOR:
 			return true;
 		default:
 			return false;
@@ -288,6 +291,9 @@ namespace nope::dts::parser
 		case TokenType::KW_FUNCTION:
 			s = "KW_FUNCTION";
 			break;
+		case TokenType::KW_CONSTRUCTOR:
+			s = "KW_CONSTRUCTOR";
+			break;
 		case TokenType::KW_IMPORT:
 			s = "KW_IMPORT";
 			break;
@@ -399,6 +405,9 @@ namespace nope::dts::parser
 		case TokenType::P_LESS_THAN:
 			s = "P_LESS_THAN";
 			break;
+		case TokenType::P_AMPERSAND:
+			s = "P_AMPERSAND";
+			break;
 		case TokenType::STRING_LITERAL:
 			s = "STRING_LITERAL";
 			break;
@@ -447,6 +456,9 @@ namespace nope::dts::parser
 		case TokenType::Function:
 			s = "Function";
 			break;
+		case TokenType::Constructor:
+			s = "Constructor";
+			break;
 		case TokenType::Parameter:
 			s = "Parameter";
 			break;
@@ -476,6 +488,12 @@ namespace nope::dts::parser
 			break;
 		case TokenType::Namespace:
 			s = "Namespace";
+			break;
+		case TokenType::Import:
+			s = "Import";
+			break;
+		case TokenType::Export:
+			s = "Export";
 			break;
 		case TokenType::FileElement:
 			s = "FileElement";

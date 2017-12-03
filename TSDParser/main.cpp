@@ -14,11 +14,11 @@ int main(int ac, char **av)
 
 			parser.parse();
 
-			std::cout << "OK" << std::endl;
+			std::cout << "OK" << std::flush;
 
-			std::ofstream os("output.xml");
+			/*std::ofstream os("output.xml");
 
-			os << parser.ast().xml();
+			os << parser.ast().xml();*/
 		}
 	}
 	catch (nope::dts::parser::error::Syntax const &e)

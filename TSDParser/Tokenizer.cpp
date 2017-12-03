@@ -90,12 +90,12 @@ namespace nope::dts::parser
 		
 		char cur = m_input[*m_cursor];
 		
-		if (std::isalpha(cur) || cur == '_')
+		if (std::isalpha(cur) || cur == '_' || cur == '$')
 		{
 			token = this->parseId();
 			this->filterKeyword(token);
 		}
-		else if (cur == '"')
+		else if (cur == '"' || cur == '\'')
 		{
 			token = this->parseString();
 		}
@@ -268,7 +268,9 @@ namespace nope::dts::parser
 		std::size_t begin = *m_cursor;
 
 		while (this->eof() == false &&
-			(std::isalnum(m_input[*m_cursor]) || m_input[*m_cursor] == '_'))
+				(std::isalnum(m_input[*m_cursor]) ||
+				m_input[*m_cursor] == '_' ||
+				m_input[*m_cursor] == '$'))
 		{
 			++(*m_cursor);
 			++(*m_col);
@@ -282,6 +284,7 @@ namespace nope::dts::parser
 		std::pair<const char *, TokenType> val[] = {
 			{ "class", TokenType::KW_CLASS },
 			{ "interface", TokenType::KW_INTERFACE },
+			{ "constructor", TokenType::KW_CONSTRUCTOR },
 			{ "const", TokenType::KW_CONST },
 			{ "enum", TokenType::KW_ENUM },
 			{ "export", TokenType::KW_EXPORT },
@@ -321,13 +324,14 @@ namespace nope::dts::parser
 
 	Token Tokenizer::parseString()
 	{
+		char quote = m_input[*m_cursor];
 		std::size_t begin = ++(*m_cursor);
 
 		bool esc = false;
 
 		while (this->eof() == false)
 		{
-			if (!esc && m_input[*m_cursor] == '"')
+			if (!esc && m_input[*m_cursor] == quote)
 			{
 				(*m_cursor)++;
 				break;
@@ -388,7 +392,8 @@ namespace nope::dts::parser
 			{ "=", TokenType::P_EQUAL },
 			{ "|", TokenType::P_VERTICAL_BAR },
 			{ "<", TokenType::P_GREATER_THAN },
-			{ ">", TokenType::P_LESS_THAN }
+			{ ">", TokenType::P_LESS_THAN },
+			{ "&", TokenType::P_AMPERSAND }
 		};
 
 		for (auto const &v : val)

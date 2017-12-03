@@ -27,6 +27,8 @@ namespace nope::dts::parser
 	private:
 		Token parseFile();
 		Token parseFileElement();
+		Token parseImport();
+		Token parseExport();
 		Token parseNamespace();
 		Token parseNamespaceElement();
 		Token parseGlobalVariable();
@@ -37,6 +39,7 @@ namespace nope::dts::parser
 		Token parseGenericParameter();
 		Token parseObjectCallable();
 		Token parseFunction();
+		Token parseConstructor();
 		Token parseParameterPack();
 		Token parseParameter();
 		Token parseMapObject();

@@ -18,6 +18,7 @@ namespace nope::dts::parser
 		KW_EXPORT,
 		KW_EXTENDS,
 		KW_FUNCTION,
+		KW_CONSTRUCTOR,
 		KW_IMPORT,
 		KW_IN,
 		KW_TYPEOF,
@@ -55,6 +56,7 @@ namespace nope::dts::parser
 		P_VERTICAL_BAR,
 		P_GREATER_THAN,
 		P_LESS_THAN,
+		P_AMPERSAND,
 		STRING_LITERAL,
 		NUMBER,
 		ElementKey,
@@ -72,6 +74,7 @@ namespace nope::dts::parser
 		ObjectCallable,
 		Parameter,
 		Function,
+		Constructor,
 		Property,
 		GenericParameter,
 		GenericParameterPack,
@@ -81,6 +84,8 @@ namespace nope::dts::parser
 		GlobalVariable,
 		NamespaceElement,
 		Namespace,
+		Import,
+		Export,
 		FileElement,
 		File
 	};
