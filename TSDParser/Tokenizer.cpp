@@ -8,23 +8,50 @@ namespace nope::dts::parser
 	/// <param name="filename">The filename.</param>
 	Tokenizer::Tokenizer(std::string_view filename) :
 		m_filename(filename),
-		m_isPeekMode(false),
-		m_realLine(1),
-		m_realCol(1),
-		m_realCursor(0),
-		m_realLastSkipNewlineCount(0),
-		m_line(&m_realLine),
-		m_col(&m_realCol),
-		m_cursor(&m_realCursor),
-		m_lastSkipNewlineCount(&m_realLastSkipNewlineCount),
-		m_peekLine(1),
-		m_peekCol(1),
-		m_peekCursor(0),
-		m_peekLastSkipNewlineCount(0),
 		m_input((std::istreambuf_iterator<char>(std::ifstream(m_filename))),
-			std::istreambuf_iterator<char>())
+			std::istreambuf_iterator<char>()),
+		m_token(),
+		m_cursor(0)
 	{
-		this->skip();
+		for (std::size_t cursor = 0; cursor < m_input.size();)
+		{
+			Token token;
+			char cur = m_input[cursor];
+			char peek = m_input[cursor + 1];
+
+			if (std::isspace(cur))
+			{
+				token = this->parseSpace(cursor);
+			}
+			else if (cur == '/' && peek == '/')
+			{
+				token = this->parseLineComment(cursor);
+			}
+			else if (cur == '/' && peek == '*')
+			{
+				token = this->parseBlockComment(cursor);
+			}
+			else if (std::isalpha(cur) || cur == '_' || cur == '$')
+			{
+				token = this->parseId(cursor);
+				this->filterKeyword(token);
+			}
+			else if (cur == '"' || cur == '\'')
+			{
+				token = this->parseString(cursor);
+			}
+			else if (std::isdigit(cur))
+			{
+				token = this->parseNumber(cursor);
+			}
+			else
+			{
+				token = this->parsePunctuation(cursor);
+			}
+
+			m_token.push_back(token);
+		}
+		m_token.emplace_back(TokenType::END_OF_FILE);
 	}
 
 	/// <summary>
@@ -40,84 +67,66 @@ namespace nope::dts::parser
 	/// </summary>
 	/// <param name="lookAhead">Lookahead.</param>
 	/// <returns>The token found at this lookahead.</returns>
-	Token Tokenizer::peek(std::uint32_t lookAhead, bool skipNewline)
+	Token Tokenizer::peek(std::uint32_t lookAhead, bool ignoreNewline)
 	{
-		this->peekMode(true);
-
-		for (std::uint32_t i = 0; i < lookAhead; ++i)
+		if (this->eof())
 		{
-			this->next(skipNewline);
+			return m_token.back();
 		}
 
-		Token token = this->next(skipNewline);
+		std::size_t cursor = m_cursor;
+		TokenType type = m_token[cursor].type;
 
-		m_isPeekMode = false;
+		while (type != TokenType::END_OF_FILE)
+		{
+			if (type == TokenType::LINE_COMMENT || type == TokenType::BLOCK_COMMENT ||
+				(type == TokenType::P_NEWLINE && ignoreNewline) || --lookAhead != 0)
+			{
+				++cursor;
+			}
+			else
+			{
+				break;
+			}
+		}
 
-		return token;
+		return m_token[cursor];
 	}
 
 	/// <summary>
 	/// Get the next token
 	/// </summary>
 	/// <returns>Next token in the input</returns>
-	Token Tokenizer::next(bool skipNewline)
+	Token Tokenizer::next(bool ignoreNewline)
 	{
-		Token token;
-
-		if (m_isPeekMode == false)
-		{
-			this->peekMode(false);
-		}
-
-		if (skipNewline == false && *m_lastSkipNewlineCount > 0)
-		{
-			(*m_lastSkipNewlineCount)--;
-			token.type = TokenType::P_NEWLINE;
-			token.value = "\\n";
-
-			return token;
-		}
-		else
-		{
-			*m_lastSkipNewlineCount = 0;
-		}
-
 		if (this->eof())
 		{
-			token.type = TokenType::END_OF_FILE;
-			return token;
-		}
-		
-		char cur = m_input[*m_cursor];
-		
-		if (std::isalpha(cur) || cur == '_' || cur == '$')
-		{
-			token = this->parseId();
-			this->filterKeyword(token);
-		}
-		else if (cur == '"' || cur == '\'')
-		{
-			token = this->parseString();
-		}
-		else if (std::isdigit(cur))
-		{
-			token = this->parseNumber();
-		}
-		else
-		{
-			token = this->parsePunctuation();
+			return m_token.back();
 		}
 
-		this->skip();
+		TokenType type = m_token[m_cursor].type;
 
-		return token;
+		while (type != TokenType::END_OF_FILE)
+		{
+			if (type == TokenType::LINE_COMMENT || type == TokenType::BLOCK_COMMENT ||
+				(type == TokenType::P_NEWLINE && ignoreNewline))
+			{
+				++m_cursor;
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		return m_token[m_cursor++];
 	}
 
-	bool Tokenizer::nextIf(Token & token, TokenType type, std::uint32_t lookAhead, bool skipNewline)
+	bool Tokenizer::nextIf(Token & token, TokenType type, std::uint32_t lookAhead, bool ignoreNewline)
 	{
-		if (this->peek(lookAhead, skipNewline).type == type)
+		if (this->peek(lookAhead, ignoreNewline).type == type)
 		{
-			token << this->next(skipNewline);
+			token << this->next(ignoreNewline);
 			return true;
 		}
 		return false;
@@ -141,142 +150,103 @@ namespace nope::dts::parser
 	/// <returns></returns>
 	bool Tokenizer::eof() const
 	{
-		return *m_cursor >= m_input.size();
+		return m_cursor <= m_token.size();
 	}
 
 	/// <summary>
 	/// Throw an error with the specified message.
 	/// </summary>
 	/// <param name="message">The message.</param>
-	void Tokenizer::error(std::string_view message) const
+	void Tokenizer::error(std::string_view message, std::size_t line, std::size_t col) const
 	{
-		std::string location = m_filename + ':' + std::to_string(*m_line)
-			+ ':' + std::to_string(*m_col);
+		std::string location = m_filename + ':' + std::to_string(line)
+			+ ':' + std::to_string(col);
 
 		throw error::Syntax(location + " Error: " + std::string(message));
+	}
+
+	void Tokenizer::error(std::string_view message) const
+	{
+		auto[line, col] = this->getCursorPosition(m_cursor);
+
+		this->error(message, line, col);
+	}
+
+	bool Tokenizer::_eof(std::size_t cursor) const
+	{
+		return cursor >= m_input.size();
 	}
 
 	/// <summary>
 	/// Get the remaining input character number.
 	/// </summary>
-	std::size_t Tokenizer::remain() const
+	std::size_t Tokenizer::remain(std::size_t cursor) const
 	{
-		if (m_input.size() < *m_cursor)
+		if (m_input.size() < cursor)
 			return 0;
-		return m_input.size() - *m_cursor;
+		return m_input.size() - cursor;
 	}
 
-	/// <summary>
-	/// Skips useless input (space or comment).
-	/// </summary>
-	void Tokenizer::skip()
+	Token Tokenizer::parseSpace(std::size_t &cursor)
 	{
-		std::size_t lastCursorPos = *m_cursor + 1;
-		
-		//*m_lastSkipNewlineCount = 0;
+		std::size_t begin = cursor;
 
-		while (*m_cursor != lastCursorPos)
+		if (m_input[cursor] == '\n')
 		{
-			lastCursorPos = *m_cursor;
-			this->skipBlank();
-			this->skipLineComment();
-			this->skipBlockComment();
+			++cursor;
+			return Token(TokenType::P_NEWLINE, std::string_view(&m_input[begin], 1));
 		}
+
+		while (!this->_eof(cursor) &&
+			std::isspace(m_input[cursor]) && m_input[cursor] != '\n')
+		{
+			++cursor;
+		}
+
+		return Token(TokenType::BLANK, std::string_view(&m_input[begin], cursor - begin));
 	}
 
-	/// <summary>
-	/// Skips a line comment.
-	/// </summary>
-	void Tokenizer::skipLineComment()
+	Token Tokenizer::parseLineComment(std::size_t &cursor)
 	{
-		if (this->remain() > 2 && m_input[*m_cursor] == '/' &&
-			m_input[*m_cursor + 1] == '/')
+		std::size_t begin = cursor;
+
+		while (!this->_eof(cursor) && m_input[cursor] != '\n')
+			++cursor;
+
+		return Token(TokenType::LINE_COMMENT, std::string_view(&m_input[begin], cursor - begin));
+	}
+
+	Token Tokenizer::parseBlockComment(std::size_t &cursor)
+	{
+		std::size_t begin = cursor;
+
+		while (cursor - begin < 4 || m_input[cursor - 1] != '/' || m_input[cursor - 2] != '*')
 		{
-			while (this->eof() == false && m_input[*m_cursor] != '\n')
+			if (this->_eof(cursor))
 			{
-				(*m_cursor)++;
-				(*m_col)++;
-			}
+				auto [line, col] = this->getCursorPosition(m_token.size());
 
-			if (m_input[*m_cursor] == '\n')
-			{
-				(*m_cursor)++;
-				(*m_line)++;
-				*m_col = 1;
+				this->error("Dit you forgot to close the block comment ?", line, col);
 			}
-			(*m_lastSkipNewlineCount)++;
+			++cursor;
 		}
+
+		return Token(TokenType::BLOCK_COMMENT, std::string_view(&m_input[begin], cursor - begin));
 	}
 
-	/// <summary>
-	/// Skips a block comment.
-	/// </summary>
-	void Tokenizer::skipBlockComment()
+	Token Tokenizer::parseId(std::size_t &cursor)
 	{
-		std::uint32_t beginLine = *m_line;
-		std::uint32_t beginCol = *m_col;
+		std::size_t begin = cursor;
 
-		if (this->remain() > 2 && m_input[*m_cursor] == '/' &&
-			m_input[*m_cursor + 1] == '*')
+		while (!this->_eof(cursor) &&
+				(std::isalnum(m_input[cursor]) ||
+				m_input[cursor] == '_' ||
+				m_input[cursor] == '$'))
 		{
-			*m_cursor += 3;
-
-			while (m_input[*m_cursor - 1] != '*' || m_input[*m_cursor] != '/')
-			{
-				if (this->eof())
-				{
-					this->error("Unexpected end of file. Did you forget to " \
-						"close your multiline comment starting at " \
-						"line " + std::to_string(beginLine) +
-						" column " + std::to_string(beginCol) + " ?");
-				}
-
-				if (m_input[*m_cursor] == '\n')
-				{
-					(*m_line)++;
-					*m_col = 1;
-				}
-				else
-				{
-					(*m_col)++;
-				}
-				(*m_cursor)++;
-			}
-			(*m_cursor)++;
-		}
-	}
-
-	/// <summary>
-	/// Skips blank characters.
-	/// </summary>
-	void Tokenizer::skipBlank()
-	{
-		while (this->eof() == false && std::isspace(m_input[*m_cursor]))
-		{
-			if (m_input[*m_cursor] == '\n')
-			{
-				(*m_lastSkipNewlineCount)++;
-				(*m_line)++;
-				*m_col = 1;
-			}
-			(*m_cursor)++;
-		}
-	}
-
-	Token Tokenizer::parseId()
-	{
-		std::size_t begin = *m_cursor;
-
-		while (this->eof() == false &&
-				(std::isalnum(m_input[*m_cursor]) ||
-				m_input[*m_cursor] == '_' ||
-				m_input[*m_cursor] == '$'))
-		{
-			++(*m_cursor);
-			++(*m_col);
+			++cursor;
 		}
 
-		return Token(TokenType::ID, std::string_view(&m_input[begin], *m_cursor - begin));
+		return Token(TokenType::ID, std::string_view(&m_input[begin], cursor - begin));
 	}
 
 	void Tokenizer::filterKeyword(Token & token) const
@@ -322,25 +292,25 @@ namespace nope::dts::parser
 		}
 	}
 
-	Token Tokenizer::parseString()
+	Token Tokenizer::parseString(std::size_t &cursor)
 	{
-		char quote = m_input[*m_cursor];
-		std::size_t begin = ++(*m_cursor);
+		char quote = m_input[cursor];
+		std::size_t begin = cursor++;
 
 		bool esc = false;
 
-		while (this->eof() == false)
+		while (!this->_eof(cursor))
 		{
-			if (!esc && m_input[*m_cursor] == quote)
+			if (!esc && m_input[cursor] == quote)
 			{
-				(*m_cursor)++;
+				cursor++;
 				break;
 			}
-			if (!esc && m_input[*m_cursor] == '\n')
+			if (!esc && m_input[cursor] == '\n')
 			{
 				this->error("Unexpected newline");
 			}
-			if (!esc && m_input[*m_cursor] == '\\')
+			if (!esc && m_input[cursor] == '\\')
 			{
 				esc = true;
 			}
@@ -348,28 +318,27 @@ namespace nope::dts::parser
 			{
 				esc = false;
 			}
-			++(*m_cursor);
+			++cursor;
 		}
 
-		return Token(TokenType::STRING_LITERAL, std::string_view(&m_input[begin], *m_cursor - begin - 1));
+		return Token(TokenType::STRING_LITERAL, std::string_view(&m_input[begin], cursor - begin));
 	}
 
-	Token Tokenizer::parseNumber()
+	Token Tokenizer::parseNumber(std::size_t &cursor)
 	{
-		std::size_t begin = *m_cursor;
+		std::size_t begin = cursor;
 
-		while (this->eof() == false && std::isdigit(m_input[*m_cursor]))
+		while (!this->_eof(cursor) && std::isdigit(m_input[cursor]))
 		{
-			++(*m_cursor);
-			++(*m_col);
+			++cursor;
 		}
 
-		return Token(TokenType::NUMBER, std::string_view(&m_input[begin], *m_cursor - begin));
+		return Token(TokenType::NUMBER, std::string_view(&m_input[begin], cursor - begin));
 	}
 
-	Token Tokenizer::parsePunctuation()
+	Token Tokenizer::parsePunctuation(std::size_t &cursor)
 	{
-		std::size_t begin = *m_cursor;
+		std::size_t begin = cursor;
 
 		std::pair<const char *, TokenType> val[] = {
 			{ "=>", TokenType::P_ARROW },				// Keep the arrow before the equal token
@@ -400,33 +369,46 @@ namespace nope::dts::parser
 		{
 			if (std::size_t len = strlen(v.first); m_input.substr(begin, len) == v.first)
 			{
-				*m_cursor += len;
+				cursor += len;
 				return Token(v.second, std::string_view(&m_input[begin], len));
 			}
 		}
 		return Token(TokenType::UNKNOWN);
 	}
 
-	void Tokenizer::peekMode(bool mode)
+	std::pair<std::size_t, std::size_t> Tokenizer::getCursorPosition(std::size_t index) const
 	{
-		m_isPeekMode = mode;
-		if (mode)
+		std::size_t line = 1;
+		std::size_t col = 1;
+
+		for (std::size_t i = 0; i < index; ++i)
 		{
-			m_peekCursor = m_realCursor;
-			m_peekLine = m_realLine;
-			m_peekCol = m_realCol;
-			m_peekLastSkipNewlineCount = m_realLastSkipNewlineCount;
-			m_cursor = &m_peekCursor;
-			m_line = &m_peekLine;
-			m_col = &m_peekCol;
-			m_lastSkipNewlineCount = &m_peekLastSkipNewlineCount;
+			if (m_token[i].type == TokenType::P_NEWLINE)
+			{
+				++line;
+				col = 1;
+			}
+			else if (m_token[i].type == TokenType::BLOCK_COMMENT)
+			{
+				for (std::size_t j = 0; j < m_token[i].value.size(); ++j)
+				{
+					if (m_token[i].value[j] == '\n')
+					{
+						++line;
+						col = 1;
+					}
+					else
+					{
+						++col;
+					}
+				}
+			}
+			else
+			{
+				++col;
+			}
 		}
-		else
-		{
-			m_cursor = &m_realCursor;
-			m_line = &m_realLine;
-			m_col = &m_realCol;
-			m_lastSkipNewlineCount = &m_realLastSkipNewlineCount;
-		}
+
+		return std::make_pair(line, col);
 	}
 }

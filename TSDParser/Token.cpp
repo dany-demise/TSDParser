@@ -25,6 +25,9 @@ namespace nope::dts::parser
 		{
 		case TokenType::END_OF_FILE:
 		case TokenType::ID:
+		case TokenType::BLANK:
+		case TokenType::LINE_COMMENT:
+		case TokenType::BLOCK_COMMENT:
 		case TokenType::KW_CLASS:
 		case TokenType::KW_INTERFACE:
 		case TokenType::KW_CONST:
@@ -93,7 +96,7 @@ namespace nope::dts::parser
 
 	Token & Token::operator<<(Token &&children)
 	{
-		//std::cout << children.type << " => " << children.value << '\n';
+		std::cout << children.type << " => " << children.value << '\n';
 		child.push_back(std::move(children));
 
 		return *this;
@@ -269,6 +272,15 @@ namespace nope::dts::parser
 			break;
 		case TokenType::ID:
 			s = "ID";
+			break;
+		case TokenType::BLANK:
+			s = "BLANK";
+			break;
+		case TokenType::LINE_COMMENT:
+			s = "LINE_COMMENT";
+			break;
+		case TokenType::BLOCK_COMMENT:
+			s = "BLOCK_COMMENT";
 			break;
 		case TokenType::KW_CLASS:
 			s = "KW_CLASS";

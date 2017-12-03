@@ -21,53 +21,35 @@ namespace nope::dts::parser
 		Tokenizer &operator=(Tokenizer const &that) = delete;
 		Tokenizer &operator=(Tokenizer &&that) = delete;
 
-		Token peek(std::uint32_t lookAhead = 0, bool skipNewline = true);
-		Token next(bool skipNewline = true);
+		Token peek(std::uint32_t lookAhead = 0, bool ignoreNewline = false);
+		Token next(bool ignoreNewline = false);
 		bool nextIf(Token &token, TokenType type, std::uint32_t lookAhead = 0, bool skipNewline = true);
 		bool nextIf(Token &token, std::function<bool()> func);
 		bool eof() const;
 
+		void error(std::string_view message, std::size_t line, std::size_t col) const;
 		void error(std::string_view message) const;
 	private:
-		std::size_t remain() const;
-
-		// Skip methods
-		void skip();
-		void skipLineComment();
-		void skipBlockComment();
-		void skipBlank();
+		bool _eof(std::size_t cursor) const;
+		std::size_t remain(std::size_t cursor) const;
 
 		// Parsing methods
-		Token parseId();
+		Token parseSpace(std::size_t &cursor);
+		Token parseLineComment(std::size_t &cursor);
+		Token parseBlockComment(std::size_t &cursor);
+		Token parseId(std::size_t &cursor);
 		void filterKeyword(Token &token) const;
-		Token parseString();
-		Token parseNumber();
-		Token parsePunctuation();
+		Token parseString(std::size_t &cursor);
+		Token parseNumber(std::size_t &cursor);
+		Token parsePunctuation(std::size_t &cursor);
 
-		// Switch between normal and peek mode
-		void peekMode(bool mode);
+		std::pair<std::size_t, std::size_t> getCursorPosition(std::size_t index) const;
 
 		std::string m_filename;
-
-		bool m_isPeekMode;
-
-		std::uint32_t m_realLine;
-		std::uint32_t m_realCol;
-		std::size_t m_realCursor;
-		std::uint32_t m_realLastSkipNewlineCount;
-
-		std::uint32_t *m_line;
-		std::uint32_t *m_col;
-		std::size_t *m_cursor;
-		std::uint32_t *m_lastSkipNewlineCount;
-
-		std::uint32_t m_peekLine;
-		std::uint32_t m_peekCol;
-		std::size_t m_peekCursor;
-		std::uint32_t m_peekLastSkipNewlineCount;
-
 		std::string m_input;
+		std::vector<Token> m_token;
 
+		std::size_t m_cursor;
 	};
 }
 

@@ -405,7 +405,7 @@ namespace nope::dts::parser
 			}
 		}
 
-		if (m_input.peek(0, false).type != TokenType::P_CLOSE_BRACE)
+		if (m_input.peek(0, true).type != TokenType::P_CLOSE_BRACE)
 		{
 			this->checkEndOfLine(elem);
 		}
@@ -875,7 +875,7 @@ namespace nope::dts::parser
 
 	void Parser::checkEndOfLine(Token & token)
 	{
-		token << m_input.next(false);
+		token << m_input.next(true);
 
 		this->checkToken(token.last(), { TokenType::P_SEMICOLON, TokenType::P_NEWLINE },
 			"Expected a ';' or a newline at the end of the declaration");
