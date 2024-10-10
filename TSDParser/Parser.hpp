@@ -57,21 +57,21 @@ namespace nope::dts::parser
 
 		void checkEndOfLine(Token &token);
 
-		inline void Parser::nextAndCheck(Token & token, TokenType type, std::string_view msg)
+		inline void nextAndCheck(Token & token, TokenType type, std::string_view msg)
 		{
 			token << m_input.next();
 
 			this->checkToken(token.last(), type, msg);
 		}
 
-		inline void Parser::nextAndCheck(Token & token, std::initializer_list<TokenType> types, std::string_view msg)
+		inline void nextAndCheck(Token & token, std::initializer_list<TokenType> types, std::string_view msg)
 		{
 			token << m_input.next();
 
 			this->checkToken(token.last(), types, msg);
 		}
 
-		inline void Parser::checkToken(Token const & token, TokenType type, std::string_view msg) const
+		inline void checkToken(Token const & token, TokenType type, std::string_view msg) const
 		{
 			if (token.type != type)
 			{
@@ -79,7 +79,7 @@ namespace nope::dts::parser
 			}
 		}
 
-		inline void Parser::checkToken(Token const & token, std::initializer_list<TokenType> types, std::string_view msg) const
+		inline void checkToken(Token const & token, std::initializer_list<TokenType> types, std::string_view msg) const
 		{
 			for (auto type : types)
 			{
