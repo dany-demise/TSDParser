@@ -5,6 +5,7 @@
 # include <string_view>
 # include <cinttypes>
 # include "Token.hpp"
+#include <string>
 
 namespace nope::dts::parser
 {
