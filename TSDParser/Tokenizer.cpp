@@ -18,7 +18,7 @@ namespace nope::dts::parser
 if (!file_stream) {
     throw std::runtime_error("Failed to open file: " + m_filename);
 }
-this.m_input = (std::istreambuf_iterator<char>(), std::istreambuf_iterator<char>(file_stream)); // Use it here
+this->m_input = (std::istreambuf_iterator<char>(), std::istreambuf_iterator<char>(file_stream)); // Use it here
 
 		for (std::size_t cursor = 0; cursor < m_input.size();)
 		{
